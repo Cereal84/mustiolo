@@ -8,8 +8,6 @@ pythonType2String[str] = "STRING"
 pythonType2String[int] = "INTEGER"
 
 
-
-
 @dataclass
 class ParsedCommand:
     name : str
@@ -105,7 +103,6 @@ class TinyCLI:
     def _register_command(self, f_wrapper: Callable, f: Callable) -> None:
         if f.__name__ in self._commands:
             raise Exception(f"Command {f.__name__} already exists")
-        print(f"Register {f.__name__}")
         parameters = self._parse_parameters(f)
         model = CommandModel(name=f.__name__, f=f_wrapper, doc=f.__doc__, parameters=parameters)
         self._commands[f.__name__] = model
@@ -151,7 +148,7 @@ class TinyCLI:
 
     def run(self) -> None:
         # clear the screen and print the hello mesage (if exists)
-        #print("\033[H\033[J", end="")
+        print("\033[H\033[J", end="")
         if self._hello_message != "":
             print(self._hello_message)
         while True:
