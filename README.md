@@ -21,7 +21,7 @@ It must be considered as a toy library just to experiment.
 
 Here a minimum example about a CLI.
 
-'''
+```python
 from main import TinyCLI
 
 cli = TinyCLI()
@@ -39,4 +39,5 @@ def say_hello(name: str = "John"):
 if __name__ == "__main__":
     cli.run()
 
-'''
+```
+
