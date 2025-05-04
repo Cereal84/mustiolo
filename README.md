@@ -41,3 +41,25 @@ if __name__ == "__main__":
 
 ```
 
+Example of execution
+
+```bash
+
+Welcome to TinyCLI
+> ?
+Commands:
+
+	test	Print 'test'
+	hello	Say Hello to name
+> ? test
+test 
+> ? hello
+hello NAME
+
+Parameters:
+
+		NAME	Type STRING, Required: False Default: John
+
+>
+```
+
