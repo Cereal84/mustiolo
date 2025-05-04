@@ -1,5 +1,6 @@
 from collections.abc import Callable
 from dataclasses import dataclass
+import os
 from typing import Any, Dict, List
 
 
@@ -51,7 +52,59 @@ class CommandModel:
         return help_msg
 
     def short_help(self) -> str:
-        return f"{self.name}\t{self.doc}"
+        return f"{self.name}{' '*4}{self.doc}"
+
+class Panel:
+
+    """ """
+
+    def __init__(self, title: str, content: str, columns: int = 80):
+        self._title = title
+        self._content = content
+        self._columns = columns
+
+
+    def _print_panel_line(self, line: str) -> str:
+        """If the line is larger than the shell columns we need
+           to split the line.
+           We need to take in account 2 '│' and 2 whitespaces.
+        """ 
+
+        if (len(line) - 4) <= self._columns: 
+            whitespaces = self._columns - (len(line) +4)
+            return f"│ {line}{' '*whitespaces} │\n"
+
+
+        lines = ""
+        
+        # split the line
+        while len(line) > 0:
+            lines += self._print_panel_line(line[0: self._columns -5])
+            line = line.replace(line[0: self._columns -5], "")
+
+        return lines
+
+
+    def __str__(self) -> str:
+        """Draw panle with a title and content.
+
+            ╭─── Title ─────────────╮
+            │    CONTENT            │
+            ╰───────────────────────╯   
+        """
+
+        top_left = '╭───'
+        top_right = '╮'
+        bottom_left = '╰'
+        bottom_right = '╯'
+
+        # remove bottom_left, bottom_right, title and 2 spaces
+        first_row = self._columns - (len(top_left) + 2 + len(self._title) + len(top_right))
+        panel = f"{top_left} {self._title} {'─'*first_row}{top_right}\n"
+        for line in self._content.split('\n'):
+            panel += self._print_panel_line(line)
+        panel += f"{bottom_left}{'─'*(self._columns -2)}{bottom_right}\n"
+        return panel
 
 
 class TinyCLI:
@@ -59,14 +112,20 @@ class TinyCLI:
     def __init__(self, hello_message: str = "Welcome to TinyCLI", prompt: str = ">"):
         self._hello_message = hello_message
         self._prompt = prompt
+        self._columns = os.get_terminal_size().columns
         self._commands = {}
+
+
+    def _draw_panel(self, title: str , content: str) -> str:
+        """Draw panle with a title and content.
+        """
+        return str(Panel(title, content,  self._columns))
+
 
 
     def command(self, f: Callable) -> None:
         """This is the decorator used to register a CLI command"""
         def wrapper(*args, **kwargs):
-            """
-            """
             try:
                 f(*args, **kwargs)
             except Exception as ex:
@@ -109,22 +168,20 @@ class TinyCLI:
 
 
     def _help(self) -> str:
-        msg = "Commands:\n\n\t"
-        msg +=  "\n\t".join([ command.short_help() for _, command in self._commands.items()])
-        return msg
+        msg =  "\n".join([ command.short_help() for _, command in self._commands.items()])
+        return str(Panel("Commands", msg))
 
     def _help_specific_command(self, cmd: str) -> str:
         if cmd not in self._commands:
             # substitute with a custom exception
-            print(f"Error: Command '{cmd}' not exists")
+            print(self._draw_panel("Error", f"Command '{cmd}' does not exists."))
             print(self._help())
-            return
+            return ""
          
-        return str(self._commands[cmd])
+        return self._draw_panel(f"Usage {cmd}", str(self._commands[cmd]))
 
     def _handle_exception(self, ex) -> None:
-        print(f"Error: {ex}")
-
+        self._draw_panel("Error", str(ex))
 
     def _parse_command_line(self, command_line: str) -> ParsedCommand:
         components = command_line.split()
