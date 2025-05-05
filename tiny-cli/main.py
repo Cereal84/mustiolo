@@ -1,8 +1,9 @@
+
 from collections.abc import Callable
 from dataclasses import dataclass
 import os
 from typing import Any, Dict, List
-
+from message_box import BorderStyle, draw_message_box
 
 pythonType2String = {}
 pythonType2String[str] = "STRING"
@@ -54,57 +55,10 @@ class CommandModel:
     def short_help(self) -> str:
         return f"{self.name}{' '*4}{self.doc}"
 
-class Panel:
-
-    """ """
-
-    def __init__(self, title: str, content: str, columns: int = 80):
-        self._title = title
-        self._content = content
-        self._columns = columns
-
-
-    def _print_panel_line(self, line: str) -> str:
-        """If the line is larger than the shell columns we need
-           to split the line.
-           We need to take in account 2 '│' and 2 whitespaces.
-        """ 
-
-        if (len(line) - 4) <= self._columns: 
-            whitespaces = self._columns - (len(line) +4)
-            return f"│ {line}{' '*whitespaces} │\n"
-
-
-        lines = ""
-        
-        # split the line
-        while len(line) > 0:
-            lines += self._print_panel_line(line[0: self._columns -5])
-            line = line.replace(line[0: self._columns -5], "")
-
-        return lines
-
-
-    def __str__(self) -> str:
-        """Draw panle with a title and content.
-
-            ╭─── Title ─────────────╮
-            │    CONTENT            │
-            ╰───────────────────────╯   
-        """
-
-        top_left = '╭───'
-        top_right = '╮'
-        bottom_left = '╰'
-        bottom_right = '╯'
-
-        # remove bottom_left, bottom_right, title and 2 spaces
-        first_row = self._columns - (len(top_left) + 2 + len(self._title) + len(top_right))
-        panel = f"{top_left} {self._title} {'─'*first_row}{top_right}\n"
-        for line in self._content.split('\n'):
-            panel += self._print_panel_line(line)
-        panel += f"{bottom_left}{'─'*(self._columns -2)}{bottom_right}\n"
-        return panel
+long_text ="""First line.
+Second line just a little bit longer.
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+"""
 
 
 class TinyCLI:
@@ -114,14 +68,12 @@ class TinyCLI:
         self._prompt = prompt
         self._columns = os.get_terminal_size().columns
         self._commands = {}
-
+        print(self._draw_panel("TEST", long_text))
 
     def _draw_panel(self, title: str , content: str) -> str:
         """Draw panle with a title and content.
         """
-        return str(Panel(title, content,  self._columns))
-
-
+        return draw_message_box(title, content,  BorderStyle.SINGLE_ROUNDED, self._columns)
 
     def command(self, f: Callable) -> None:
         """This is the decorator used to register a CLI command"""
@@ -205,7 +157,7 @@ class TinyCLI:
 
     def run(self) -> None:
         # clear the screen and print the hello mesage (if exists)
-        print("\033[H\033[J", end="")
+        #print("\033[H\033[J", end="")
         if self._hello_message != "":
             print(self._hello_message)
         while True:
