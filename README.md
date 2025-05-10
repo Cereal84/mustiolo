@@ -30,7 +30,7 @@ It must be considered as a toy library just to experiment.
 To install TinyCLI, you can use pip:
 
 ```bash
-git clone https://github.com/Cereal84/tiny-cli"
+git clone https://github.com/Cereal84/tiny_cli.git
 cd tiny-cli
 pip install .
 ```
