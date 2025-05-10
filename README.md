@@ -30,8 +30,8 @@ It must be considered as a toy library just to experiment.
 To install Mustiolo, you can use pip:
 
 ```bash
-git clone https://github.com/Cereal84/tiny_cli.git
-cd tiny-cli
+git clone git@github.com:Cereal84/mustiolo.git
+cd mustiolo
 pip install .
 ```
 

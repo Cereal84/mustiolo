@@ -20,4 +20,4 @@ classifiers = [
 dependencies = []
 
 [project.urls]
-Homepage = "https://github.com/Cereal84/tiny-cli"
+Homepage = "https://github.com/Cereal84/mustiolo"
