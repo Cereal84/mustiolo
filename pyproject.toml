@@ -3,7 +3,7 @@ requires = ["setuptools", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "tinycli"
+name = "mustiolo"
 version = "0.1.0"
 description = "A lightweight Python framework for building command-line interfaces (CLI)."
 readme = "README.md"

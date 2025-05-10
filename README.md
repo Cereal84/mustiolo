@@ -1,8 +1,8 @@
-# TinyCLI
+# Mustiolo
 
-TinyCLI is a lightweight Python framework for building command-line interfaces (CLI).
+Mustiolo is a lightweight Python framework for building command-line interfaces (CLI).
 It allows to define commands, handle parameters, and provide user-friendly help messages with minimal effort. 
-TinyCLI is designed to be simple, extensible, and easy to use.
+Mustiolo is designed to be simple, extensible, and easy to use.
 
 ---
 
@@ -27,7 +27,7 @@ It must be considered as a toy library just to experiment.
 
 ## Installation
 
-To install TinyCLI, you can use pip:
+To install Mustiolo, you can use pip:
 
 ```bash
 git clone https://github.com/Cereal84/tiny_cli.git
@@ -42,7 +42,7 @@ pip install .
 Commands can be defined using the @command decorator. Each command can have a name, short help, and long help description.
 
 ```python
-from tinycli.tinycli import TinyCLI
+from mustiolo.cli import TinyCLI
 
 cli = TinyCLI()
 

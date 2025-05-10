@@ -1,7 +1,6 @@
-from tinycli.tinycli import TinyCLI
+from mustiolo.cli import TinyCLI
 
 cli = TinyCLI()
-
 
 @cli.command()
 def greet(name: str = "World"):

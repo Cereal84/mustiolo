@@ -3,7 +3,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 import os
 from typing import Any, List
-from tinycli.message_box import BorderStyle, draw_message_box
+from mustiolo.message_box import BorderStyle, draw_message_box
 
 pythonType2String = {}
 pythonType2String[str] = "STRING"
