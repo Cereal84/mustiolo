@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tinycli"
+version = "0.1.0"
+description = "A lightweight Python framework for building command-line interfaces (CLI)."
+readme = "README.md"
+license = {text = "MIT"}
+authors = [
+    {name = "Alessandro Pischedda", email = "alessandro.pischedda@gmail.com"},
+]
+keywords = ["cli", "command-line", "framework", "python"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent"
+]
+dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/Cereal84/tiny-cli"
