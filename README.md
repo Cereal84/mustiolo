@@ -33,14 +33,12 @@ It must be considered as a toy library just to experiment.
 Commands can be defined using the @command decorator. Each command can have a name, short help, and long help description.
 
 ```python
-from tiny_cli.main import TinyCLI
-
 cli = TinyCLI()
 
 @cli.command()
-def greet(name: str):
+def greet(name: str = "World"):
     """Greet a user by name."""
-    print(f"Hello, {name}!")
+    print(f"Hello {name}!")
 
 @cli.command()
 def add(a: int, b: int):
@@ -54,61 +52,67 @@ if __name__ == "__main__":
 Example of execution
 
 ```bash
-
 Welcome to TinyCLI
 > ?
-╭──────────── Commands ───────────╮
-│ greet    Greet a user by name   │
-│ add      Add two numbers        │
-╰─────────────────────────────────╯
-> greet Alice
-Hello, Alice!
-> add 5 10
-The result is: 15
+greet    Greet a user by name.
+add    Add two numbers and print the result.
 > exit
 ```
 
 It is possible to use the `?` command to see the usage of a specific command.
 
 ```bash
+> ? greet
+Usage greet Greet a user by name.
+
+greet NAME
+
+Parameters:
+		NAME	Type STRING [optional] [default: World]
 > ? add
-TBD
+Usage add Add two numbers and print the result.
+
+add A B
+
+Parameters:
+		A	Type INTEGER [required]
+		B	Type INTEGER [required]
+> exit
 ```
 
 ## Override command informations
 
 By default, the library uses as command name the function decorated via `@cli.command` and as short help message 
 the `docstring`.
-It is possible to override those information passing, in the decorator, the following arguments:
+It is possible to override the information passing, in the decorator, the following arguments:
 
 - name
 - help_short
 - help_long
 
-
-### Example
+So we can define a command like this:
 
 ```python
-from main import TinyCLI
-
-cli = TinyCLI()
-
-@cli.command(name="greet", help_short="Greet a user", help_long="This command greets a user by name.")
-def greet(name: str):
-    print(f"Hello, {name}!")
-
-@cli.command(name="sum", help_short="Add two numbers", help_long="This command adds two numbers and prints the result.")
+@cli.command(name="sum", help_short="Add two numbers", help_long="Add two numbers and print the result.")
 def add(a: int, b: int):
     print(f"The result is: {a + b}")
-
-if __name__ == "__main__":
-    cli.run()
 ```
 
+In this example we override the command name and the short help message, but we keep the long help message as it is.
 
 ```bash
-
 Welcome to TinyCLI
 > ?
+greet    Greet a user by name.
+sum    Add two numbers
+> ? sum
+Usage sum Add two numbers and print the result.
+
+sum A B
+
+Parameters:
+		A	Type INTEGER [required]
+		B	Type INTEGER [required]
+> 
 ```
 
