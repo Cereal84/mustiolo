@@ -25,6 +25,13 @@ is an experiment to try to have the minimum code for building CLI applications.
 It must be considered as a toy library just to experiment.
 
 
+## Why this name ?
+
+The 'mustiolo' is the smallest mammal in the world, weighing about 1.2-2.5 grams as an adult. 
+It is present in Sardinia, in the Italian, Balkan, Iberian peninsulas and in North Africa.
+
+This library aims to be the smallest library for building CLI applications in Python just like a mustiolo is the smallest mammal.
+
 ## Installation
 
 To install Mustiolo, you can use pip:
