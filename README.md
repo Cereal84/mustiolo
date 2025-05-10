@@ -25,6 +25,15 @@ is an experiment to try to have the minimum code for building CLI applications.
 It must be considered as a toy library just to experiment.
 
 
+## Installation
+
+To install TinyCLI, you can use pip:
+
+```bash
+git clone https://github.com/Cereal84/tiny-cli"
+cd tiny-cli
+pip install .
+```
 
 ## Basic usage
 
@@ -33,6 +42,8 @@ It must be considered as a toy library just to experiment.
 Commands can be defined using the @command decorator. Each command can have a name, short help, and long help description.
 
 ```python
+from tinycli.tinycli import TinyCLI
+
 cli = TinyCLI()
 
 @cli.command()
