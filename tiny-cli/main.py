@@ -46,23 +46,43 @@ class CommandModel:
     """
     name: str
     f: Callable
-    doc: str
-    parameters: List[ParameterModel] 
+    help_short: str
+    help_long: str
+    # TODO: change parameters into arguments
+    parameters: List[ParameterModel]
 
     def __str__(self) -> str:
-        help_msg = f"""{self.name} {' '.join([p.name.upper() for p in self.parameters])}"""
-        if len(self.parameters):
-            help_msg += "\n\nParameters:\n"
-        help_msg += "".join([ str(p) for p in self.parameters])
-        return help_msg
+        help_msg = [f"{self.help_long}\n\n{self.name} {' '.join([p.name.upper() for p in self.parameters])}"]
+        if len(self.parameters) == 0:
+            return help_msg[0]
+
+        help_msg.append("\nParameters:")
+        help_msg.extend([ str(p) for p in self.parameters])
+        return "\n".join(help_msg)
 
     def short_help(self) -> str:
-        return f"{self.name}{' '*4}{self.doc}"
+        return f"{self.name}{' '*4}{self.help_short}"
 
-long_text ="""First line.
-Second line just a little bit longer.
-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
-"""
+    def long_help(self) -> str:
+        return f"{self.name}\n\n{self.help_long}\n\nParameters:\n" + "".join([ str(p) for p in self.parameters])
+
+    def get_mandatory_parameters(self) -> List[ParameterModel]:
+        return [ param for param in self.parameters if param.default is None ]
+
+    def get_optional_parameters(self) -> List[ParameterModel]:
+        return [ param for param in self.parameters if param.default is not None ]
+
+    def cast_arguments(self, args: List[str]) -> List[Any]:
+        """ This function cast the arguments to the correct type.
+            It raises an exception if the number of arguments is less than the
+            number of mandatory parameters or if it's greater of the total.
+        """
+        if len(args) < len(self.get_mandatory_parameters()):
+            raise Exception("Missing parameters")
+        if len(args) > len(self.parameters):
+            raise Exception("Too many parameters")
+
+        return [ self.parameters[index].ptype(args[index]) for index in range(0, len(args)) ]
 
 
 class TinyCLI:
@@ -72,23 +92,51 @@ class TinyCLI:
         self._prompt = prompt
         self._columns = os.get_terminal_size().columns
         self._commands = {}
-        print(self._draw_panel("TEST", long_text))
 
-    def _draw_panel(self, title: str , content: str) -> str:
+
+    def _draw_panel(self, title: str , content: str, border_style: BorderStyle = BorderStyle.SINGLE_ROUNDED, columns: int = None) -> str:
         """Draw panle with a title and content.
         """
-        return draw_message_box(title, content,  BorderStyle.SINGLE_ROUNDED, self._columns)
+        cols = self._columns
+        if columns is not None:
+            cols = columns
+        return draw_message_box(title, content, border_style, cols)
 
-    def command(self, f: Callable) -> None:
-        """This is the decorator used to register a CLI command"""
-        def wrapper(*args, **kwargs):
-            try:
-                f(*args, **kwargs)
-            except Exception as ex:
-                self._handle_exception(ex) 
 
-        self._register_command(wrapper, f)
-        return wrapper
+    def _register_command(self, f_wrapper: Callable, f: Callable, name: str = None, help_short: str = None, help_long: str = None) -> None:
+
+        command_name = name if name is not None else f.__name__
+        command_help_short = help_short if help_short is not None else f.__doc__.split("\n")[0]
+        command_help_long = help_long if help_long is not None else f.__doc__
+
+        if command_name is None or command_name == "":
+            raise Exception("Command name cannot be None or empty")
+
+        if command_help_long is None:
+            command_help_long = ""
+        if command_help_short is None:
+            command_help_short = ""
+
+        # TODO while register the commands store also the max command length and max short help length
+        # in order to print the help in a better way.
+
+        if f.__name__ in self._commands:
+            raise Exception(f"Command {f.__name__} already exists")
+        parameters = self._parse_parameters(f)
+        model = CommandModel(name=command_name, f=f_wrapper, help_short=command_help_short, help_long=command_help_long, parameters=parameters)
+        self._commands[command_name] = model
+
+    def command(self, name: str = None, help_short: str = None, help_long: str = None) -> None:
+        def decorator(funct: Callable) -> Callable:
+            def wrapper(*args, **kwargs):
+                try:
+                    funct(*args, **kwargs)
+                except Exception as ex:
+                    self._handle_exception(ex)
+
+            self._register_command(wrapper, funct, name, help_short, help_long)
+            return wrapper
+        return decorator
 
 
     def _get_defaults(self, fn):
@@ -111,21 +159,14 @@ class TinyCLI:
         defaults = self._get_defaults(f)
         for pname, ptype in f.__annotations__.items():
             parameters.append(ParameterModel(name=pname, ptype=ptype, default=(defaults.get(pname, None))))
-        
-        return parameters 
 
+        return parameters
 
-    def _register_command(self, f_wrapper: Callable, f: Callable) -> None:
-        if f.__name__ in self._commands:
-            raise Exception(f"Command {f.__name__} already exists")
-        parameters = self._parse_parameters(f)
-        model = CommandModel(name=f.__name__, f=f_wrapper, doc=f.__doc__, parameters=parameters)
-        self._commands[f.__name__] = model
-
+    def change_prompt(self, prompt: str) -> None:
+        self._prompt = prompt
 
     def _help(self) -> str:
-        msg =  "\n".join([ command.short_help() for _, command in self._commands.items()])
-        return str(Panel("Commands", msg))
+        return "\n".join([ command.short_help() for _, command in self._commands.items()])
 
     def _help_specific_command(self, cmd: str) -> str:
         if cmd not in self._commands:
@@ -133,11 +174,11 @@ class TinyCLI:
             print(self._draw_panel("Error", f"Command '{cmd}' does not exists."))
             print(self._help())
             return ""
-         
-        return self._draw_panel(f"Usage {cmd}", str(self._commands[cmd]))
+
+        return f"Usage {cmd} {str(self._commands[cmd])}"
 
     def _handle_exception(self, ex) -> None:
-        self._draw_panel("Error", str(ex))
+        print(self._draw_panel("Error", str(ex)))
 
     def _parse_command_line(self, command_line: str) -> ParsedCommand:
         components = command_line.split()
@@ -147,21 +188,30 @@ class TinyCLI:
 
 
     def _execute_command(self, command: ParsedCommand):
-        # split the command line into components
-        #  - command name
-        #  - parameters
-        if len(command.parameters) == 0:
-              self._commands[command.name].f()
-        else:
-              # before to execute the function we need to check the parameters:
-              #  - param missing
-              #  - param type
-              self._commands[command.name].f(*command.parameters)
+
+        try:
+            # split the command line into components
+            #  - command name
+            #  - parameters
+            cmd_descriptor = self._commands[command.name]
+            if len(command.parameters) == 0:
+                cmd_descriptor.f()
+            else:
+                # here we'll store the parameters to pass to the function with the correct type
+                # in ParsedCommand we don't store the type but only the value as a string
+                arguments = cmd_descriptor.cast_arguments(command.parameters)
+                cmd_descriptor.f(*arguments)
+        except ValueError as ex:
+            print(self._draw_panel("Error", f"Error in parameters: {ex}"))
+        except KeyError:
+            print(self._draw_panel("Error", f"Command {command.name} not found. Type '?' for help."))
+        except Exception as ex:
+            print(self._draw_panel("Error", f"An error occurred: {ex}"))
 
 
     def run(self) -> None:
-        # clear the screen and print the hello mesage (if exists)
-        #print("\033[H\033[J", end="")
+        # clear the screen and print the hello message (if exists)
+        print("\033[H\033[J", end="")
         if self._hello_message != "":
             print(self._hello_message)
         while True:
@@ -172,7 +222,7 @@ class TinyCLI:
                 continue
 
             parsed_command = self._parse_command_line(command)
-  
+
             match parsed_command.name:
                 case 'exit':
                     break
@@ -183,5 +233,7 @@ class TinyCLI:
                         print(self._help())
                     continue
                 case _:  # wildcard - simile ad un else, deve stare alla fine
-                    if parsed_command.name in self._commands:
-                        self._execute_command(parsed_command)
+                    if parsed_command.name not in self._commands:
+                        print(self._draw_panel("Error", f"Command {parsed_command.name} not found. Type '?' for help."))
+                        continue
+                    self._execute_command(parsed_command)
