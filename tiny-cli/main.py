@@ -20,16 +20,20 @@ class ParsedCommand:
 class ParameterModel:
     name: str
     ptype: Any
-    default: Any   
+    default: Any
 
     def __str__(self) -> str:
-         msg = f"\n\t\t{self.name.upper()}\tType {pythonType2String[self.ptype]}"
-         if self.default is not None:
-              msg += f", Required: False Default: {self.default}"
-         else:
-              msg += ", Required: True"
-         msg += "\n"
-         return msg
+        msg = [f"\t\t{self.name.upper()}\tType {pythonType2String[self.ptype]} "]
+        if self.default is not None:
+            msg.append(f"[optional] [default: {self.default}]")
+        else:
+            msg.append("[required]")
+        return "".join(msg)
+
+    def  convert_to_type(self, value: str) -> Any:
+        # here we try to convert the value to the correct type
+        # if it fails an exception is raised
+        return self.ptype(value)
 
 
 @dataclass
