@@ -87,7 +87,7 @@ class CommandModel:
 
 class TinyCLI:
 
-    def __init__(self, hello_message: str = "Welcome to TinyCLI", prompt: str = ">"):
+    def __init__(self, hello_message: str = "Welcome", prompt: str = ">"):
         self._hello_message = hello_message
         self._prompt = prompt
         self._columns = os.get_terminal_size().columns
@@ -95,7 +95,7 @@ class TinyCLI:
 
 
     def _draw_panel(self, title: str , content: str, border_style: BorderStyle = BorderStyle.SINGLE_ROUNDED, columns: int = None) -> str:
-        """Draw panle with a title and content.
+        """Draw panel with a title and content.
         """
         cols = self._columns
         if columns is not None:
@@ -138,8 +138,8 @@ class TinyCLI:
             return wrapper
         return decorator
 
-
-    def _get_defaults(self, fn):
+    @classmethod
+    def _get_defaults(cls, fn: Callable):
         """
         Get the default values of the passed function or method.
         """
@@ -156,7 +156,7 @@ class TinyCLI:
 
     def _parse_parameters(self, f: Callable) -> List[ParameterModel]:
         parameters = []
-        defaults = self._get_defaults(f)
+        defaults = TinyCLI._get_defaults(f)
         for pname, ptype in f.__annotations__.items():
             parameters.append(ParameterModel(name=pname, ptype=ptype, default=(defaults.get(pname, None))))
 
