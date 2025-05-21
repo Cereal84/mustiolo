@@ -60,8 +60,8 @@ class CommandModel:
         help_msg.extend([ str(p) for p in self.parameters])
         return "\n".join(help_msg)
 
-    def short_help(self) -> str:
-        return f"{self.name}{' '*4}{self.help_short}"
+    def short_help(self, padding: int) -> str:
+        return f"{self.name.ljust(padding)}\t{self.help_short}"
 
     def long_help(self) -> str:
         return f"{self.name}\n\n{self.help_long}\n\nParameters:\n" + "".join([ str(p) for p in self.parameters])
@@ -92,6 +92,8 @@ class TinyCLI:
         self._prompt = prompt
         self._columns = os.get_terminal_size().columns
         self._commands = {}
+        # this is used to align the help menu
+        self._max_command_length = 0
 
 
     def _draw_panel(self, title: str , content: str, border_style: BorderStyle = BorderStyle.SINGLE_ROUNDED, columns: int = None) -> str:
@@ -119,6 +121,8 @@ class TinyCLI:
 
         # TODO while register the commands store also the max command length and max short help length
         # in order to print the help in a better way.
+        if len(command_name) > self._max_command_length:
+            self._max_command_length = len(command_name)
 
         if f.__name__ in self._commands:
             raise Exception(f"Command {f.__name__} already exists")
@@ -166,7 +170,7 @@ class TinyCLI:
         self._prompt = prompt
 
     def _help(self) -> str:
-        return "\n".join([ command.short_help() for _, command in self._commands.items()])
+        return "\n".join([ command.short_help(self._max_command_length) for _, command in self._commands.items()])
 
     def _help_specific_command(self, cmd: str) -> str:
         if cmd not in self._commands:
