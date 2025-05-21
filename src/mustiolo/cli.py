@@ -1,99 +1,35 @@
 
 from collections.abc import Callable
-from dataclasses import dataclass
 import os
-from typing import Any, List
 from mustiolo.message_box import BorderStyle, draw_message_box
-
-pythonType2String = {}
-pythonType2String[str] = "STRING"
-pythonType2String[int] = "INTEGER"
-
-
-@dataclass
-class ParsedCommand:
-    name : str
-    parameters: List[Any]
-
-
-@dataclass
-class ParameterModel:
-    name: str
-    ptype: Any
-    default: Any
-
-    def __str__(self) -> str:
-        msg = [f"\t\t{self.name.upper()}\tType {pythonType2String[self.ptype]} "]
-        if self.default is not None:
-            msg.append(f"[optional] [default: {self.default}]")
-        else:
-            msg.append("[required]")
-        return "".join(msg)
-
-    def  convert_to_type(self, value: str) -> Any:
-        # here we try to convert the value to the correct type
-        # if it fails an exception is raised
-        return self.ptype(value)
-
-
-@dataclass
-class CommandModel:
-    """This class is used as Model for help message and
-       for handle checks on the command.
-
-       'f' contains doc, name and parameters so in this case we're duplicating
-       those informations
-    """
-    name: str
-    f: Callable
-    help_short: str
-    help_long: str
-    # TODO: change parameters into arguments
-    parameters: List[ParameterModel]
-
-    def __str__(self) -> str:
-        help_msg = [f"{self.help_long}\n\n{self.name} {' '.join([p.name.upper() for p in self.parameters])}"]
-        if len(self.parameters) == 0:
-            return help_msg[0]
-
-        help_msg.append("\nParameters:")
-        help_msg.extend([ str(p) for p in self.parameters])
-        return "\n".join(help_msg)
-
-    def short_help(self, padding: int) -> str:
-        return f"{self.name.ljust(padding)}\t{self.help_short}"
-
-    def long_help(self) -> str:
-        return f"{self.name}\n\n{self.help_long}\n\nParameters:\n" + "".join([ str(p) for p in self.parameters])
-
-    def get_mandatory_parameters(self) -> List[ParameterModel]:
-        return [ param for param in self.parameters if param.default is None ]
-
-    def get_optional_parameters(self) -> List[ParameterModel]:
-        return [ param for param in self.parameters if param.default is not None ]
-
-    def cast_arguments(self, args: List[str]) -> List[Any]:
-        """ This function cast the arguments to the correct type.
-            It raises an exception if the number of arguments is less than the
-            number of mandatory parameters or if it's greater of the total.
-        """
-        if len(args) < len(self.get_mandatory_parameters()):
-            raise Exception("Missing parameters")
-        if len(args) > len(self.parameters):
-            raise Exception("Too many parameters")
-
-        return [ self.parameters[index].ptype(args[index]) for index in range(0, len(args)) ]
-
+from mustiolo.models.command import CommandModel, ParsedCommand
+from mustiolo.models.menu import MenuDescriptor, _ROOT_MENU
+from mustiolo.utils import parse_parameters
 
 class TinyCLI:
 
     def __init__(self, hello_message: str = "Welcome", prompt: str = ">"):
         self._hello_message = hello_message
         self._prompt = prompt
+        self._exit = False
         self._columns = os.get_terminal_size().columns
         self._commands = {}
         # this is used to align the help menu
         self._max_command_length = 0
+        self._menues = {}
+        # istance of the root menu
+        self._menues[_ROOT_MENU] = MenuDescriptor(name=_ROOT_MENU)
+
+    def _istantiate_root_menu(self) -> None:
+        """Instantiate the root menu and register it in the menues list.
+        """
+        self._menues[_ROOT_MENU] = MenuDescriptor(name=_ROOT_MENU)
+        # register the root menu in the commands list
+        self._commands[_ROOT_MENU] = CommandModel(name="?", f=self._help_cmd, help_short="Show this help",
+                                                 help_long="Show this help", parameters=[])
+        # register the exit command
+        self._commands["exit"] = CommandModel(name="exit", f=self._exit_cmd, help_short="Exit the program",
+                                                  help_long="Exit the program", parameters=[])
 
 
     def _draw_panel(self, title: str , content: str, border_style: BorderStyle = BorderStyle.SINGLE_ROUNDED, columns: int = None) -> str:
@@ -105,32 +41,8 @@ class TinyCLI:
         return draw_message_box(title, content, border_style, cols)
 
 
-    def _register_command(self, f_wrapper: Callable, f: Callable, name: str = None, help_short: str = None, help_long: str = None) -> None:
-
-        command_name = name if name is not None else f.__name__
-        command_help_short = help_short if help_short is not None else f.__doc__.split("\n")[0]
-        command_help_long = help_long if help_long is not None else f.__doc__
-
-        if command_name is None or command_name == "":
-            raise Exception("Command name cannot be None or empty")
-
-        if command_help_long is None:
-            command_help_long = ""
-        if command_help_short is None:
-            command_help_short = ""
-
-        # TODO while register the commands store also the max command length and max short help length
-        # in order to print the help in a better way.
-        if len(command_name) > self._max_command_length:
-            self._max_command_length = len(command_name)
-
-        if f.__name__ in self._commands:
-            raise Exception(f"Command {f.__name__} already exists")
-        parameters = self._parse_parameters(f)
-        model = CommandModel(name=command_name, f=f_wrapper, help_short=command_help_short, help_long=command_help_long, parameters=parameters)
-        self._commands[command_name] = model
-
     def command(self, name: str = None, help_short: str = None, help_long: str = None) -> None:
+        """Decorator to register a command in the __root_ CLI menu."""
         def decorator(funct: Callable) -> Callable:
             def wrapper(*args, **kwargs):
                 try:
@@ -138,36 +50,16 @@ class TinyCLI:
                 except Exception as ex:
                     self._handle_exception(ex)
 
-            self._register_command(wrapper, funct, name, help_short, help_long)
+            self._menues[_ROOT_MENU].register_command(wrapper, funct, name, help_short, help_long)
             return wrapper
         return decorator
 
-    @classmethod
-    def _get_defaults(cls, fn: Callable):
-        """
-        Get the default values of the passed function or method.
-        """
-        output = {}
-        if fn.__defaults__ is not None:
-            # Get the names of all provided default values for args
-            default_varnames = list(fn.__code__.co_varnames)[:fn.__code__.co_argcount][-len(fn.__defaults__):]
-            # Update the output dictionary with the default values
-            output.update(dict(zip(default_varnames, fn.__defaults__)))
-        if fn.__kwdefaults__ is not None:
-            # Update the output dictionary with the keyword default values
-            output.update(fn.__kwdefaults__)
-        return output
-
-    def _parse_parameters(self, f: Callable) -> List[ParameterModel]:
-        parameters = []
-        defaults = TinyCLI._get_defaults(f)
-        for pname, ptype in f.__annotations__.items():
-            parameters.append(ParameterModel(name=pname, ptype=ptype, default=(defaults.get(pname, None))))
-
-        return parameters
-
     def change_prompt(self, prompt: str) -> None:
         self._prompt = prompt
+
+    def _exit_cmd(self) -> None:
+        """Exit the program."""
+        self._exit = True
 
     def _help(self) -> str:
         return "\n".join([ command.short_help(self._max_command_length) for _, command in self._commands.items()])
@@ -218,7 +110,7 @@ class TinyCLI:
         print("\033[H\033[J", end="")
         if self._hello_message != "":
             print(self._hello_message)
-        while True:
+        while self._exit is False:
             # TODO substitute input with a for loop getchar
             # in order to support up key and history command
             command = input(f"{self._prompt} ")
