@@ -73,12 +73,20 @@ def draw_message_box(title: str, content: str, border_style: BorderStyle = Borde
 
     borders = _borders[border_style]
     lines = []
-    # header with title
-    header_fill = columns - (len(title) + len(borders[TOP_LEFT]) + len(borders[TOP_RIGHT]) + 2) # 2 whitespaces
-    half_header_fill = header_fill // 2
-    lines.append(
-        f"{borders[TOP_LEFT]}{borders[TOP]* half_header_fill} {title} {borders[TOP] * (half_header_fill + header_fill%2)}{borders[TOP_RIGHT]}"
-    )
+
+    if title != "":
+        # header with title
+        header_fill = columns - (len(title) + len(borders[TOP_LEFT]) + len(borders[TOP_RIGHT]) + 2) # 2 whitespaces
+        half_header_fill = header_fill // 2
+        lines.append(
+            f"{borders[TOP_LEFT]}{borders[TOP]* half_header_fill} {title} {borders[TOP] * (half_header_fill + header_fill%2)}{borders[TOP_RIGHT]}"
+        )
+    else:
+        # header with title
+        header_fill = columns - (len(borders[TOP_LEFT]) + len(borders[TOP_RIGHT]))
+        lines.append(
+            f"{borders[TOP_LEFT]}{borders[TOP]* header_fill}{borders[TOP_RIGHT]}"
+        )
 
     # content will be split into lines
     # and each line will be wrapped to fit within the specified number of columns.
