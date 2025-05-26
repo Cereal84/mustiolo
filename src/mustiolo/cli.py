@@ -7,9 +7,8 @@ import readline
 
 from mustiolo.exception import *
 from mustiolo.message_box import BorderStyle, draw_message_box
-from mustiolo.models.command import CommandModel, ParsedCommand
+from mustiolo.models.command import ParsedCommand
 from mustiolo.models.menu import MenuDescriptor, _ROOT_MENU
-from mustiolo.utils import parse_parameters
 
 class TinyCLI:
 
@@ -21,16 +20,13 @@ class TinyCLI:
         self._reserved_commands = ["?", "exit"] 
         self._columns = os.get_terminal_size().columns
         # contains all the menus by name
-        self._menues = {}
-        # contains the current menu stack
-        self._menu_stack = []
-
+        self._menu = None
         self._istantiate_root_menu()
 
 
     def _completer(self, text, state):
         """Autocomplete function for the readline module."""
-        options = [command for command in self._menu_stack[-1].get_commands().keys() if command.startswith(text)]
+        options = [command for command in self._menu.get_commands().keys() if command.startswith(text)]
         if state < len(options):
             return options[state] + " "
         else:
@@ -43,7 +39,6 @@ class TinyCLI:
                     readline.parse_and_bind("tab: complete")
                     readline.parse_and_bind("set show-all-if-ambiguous on")
                     readline.set_completer(self._completer)
-
                 case 'darwin':
                     readline.parse_and_bind("bind ^I rl_complete")
                     readline.parse_and_bind("set show-all-if-ambiguous on")
@@ -55,13 +50,12 @@ class TinyCLI:
     def _istantiate_root_menu(self) -> None:
         """Instantiate the root menu and register it in the menues list.
         """
-        self._menues[_ROOT_MENU] = MenuDescriptor(name=_ROOT_MENU)
-        self._menues[_ROOT_MENU].add_help_command()
+        self._menu = MenuDescriptor(name=_ROOT_MENU)
+        self._menu.add_help_command()
         # register the exit command
-        self._menues[_ROOT_MENU].register_command(self._exit_cmd, name="exit", help_short="Exit the program",
+        self._menu.register_command(self._exit_cmd, name="exit", help_short="Exit the program",
                                                   help_long="Exit the program")
         
-        self._menu_stack.append(self._menues[_ROOT_MENU])
 
 
     def _draw_panel(self, title: str , content: str, border_style: BorderStyle = BorderStyle.SINGLE_ROUNDED, columns: int = None) -> str:
@@ -83,7 +77,7 @@ class TinyCLI:
             def wrapper(*args, **kwargs):
                 funct(*args, **kwargs)
 
-            self._menues[_ROOT_MENU].register_command(funct, name, help_short, help_long)
+            self._menu.register_command(funct, name, help_short, help_long)
             return wrapper
         return decorator
 
@@ -116,7 +110,7 @@ class TinyCLI:
             # split the command line into components
             #  - command name
             #  - parameters
-            cmd_descriptor = self._menu_stack[-1].get_command(command.name)
+            cmd_descriptor = self._menu.get_command(command.name)
             if len(command.parameters) == 0:
                 cmd_descriptor.f()
             else:
