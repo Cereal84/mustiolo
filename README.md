@@ -51,9 +51,9 @@ pip install .
 Commands can be defined using the @command decorator. Each command can have a name, short help, and long help description.
 
 ```python
-from mustiolo.cli import TinyCLI
+from mustiolo.cli import CLI
 
-cli = TinyCLI()
+cli = CLI()
 
 @cli.command()
 def greet(name: str):
@@ -72,7 +72,6 @@ if __name__ == "__main__":
 Example of execution
 
 ```bash
-Welcome to TinyCLI
 > ?
 greet    Greet a user by name.
 add      Add two numbers and print the result.
@@ -114,7 +113,6 @@ def add(a: int, b: int):
 In this example we override the command name and the short help message, but we keep the long help message as it is.
 
 ```bash
-Welcome to TinyCLI
 > ?
 greet    Greet a user by name.
 sum      Add two numbers
@@ -151,3 +149,10 @@ greet NAME
 Parameters:
 		NAME	Type STRING [optional] [default: World]
 ```
+
+## Configure CLI
+
+The constructor of the `CLI` class accepts some parameters to configure the CLI behavior:
+   - 'hello_message': A welcome message displayed when the CLI starts, default is empty.
+   - 'prompt': The prompt string displayed to the user, default is ">".
+   - 'autocomplete': A boolean to enable or disable command autocomplete, default is True.

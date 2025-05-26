@@ -10,9 +10,9 @@ from mustiolo.message_box import BorderStyle, draw_message_box
 from mustiolo.models.command import ParsedCommand
 from mustiolo.models.menu import MenuDescriptor, _ROOT_MENU
 
-class TinyCLI:
+class CLI:
 
-    def __init__(self, hello_message: str = "Welcome", prompt: str = ">", autocomplete: bool = True) -> None:
+    def __init__(self, hello_message: str = "", prompt: str = ">", autocomplete: bool = True) -> None:
         self._hello_message = hello_message
         self._prompt = prompt
         self._autocomplete = autocomplete
