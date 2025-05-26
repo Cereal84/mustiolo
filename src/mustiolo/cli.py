@@ -1,6 +1,11 @@
 
 from collections.abc import Callable
 import os
+import sys
+# used to have history and arrow handling
+import readline
+
+from mustiolo.exception import *
 from mustiolo.message_box import BorderStyle, draw_message_box
 from mustiolo.models.command import CommandModel, ParsedCommand
 from mustiolo.models.menu import MenuDescriptor, _ROOT_MENU
@@ -8,28 +13,55 @@ from mustiolo.utils import parse_parameters
 
 class TinyCLI:
 
-    def __init__(self, hello_message: str = "Welcome", prompt: str = ">"):
+    def __init__(self, hello_message: str = "Welcome", prompt: str = ">", autocomplete: bool = True) -> None:
         self._hello_message = hello_message
         self._prompt = prompt
+        self._autocomplete = autocomplete
         self._exit = False
+        self._reserved_commands = ["?", "exit"] 
         self._columns = os.get_terminal_size().columns
-        self._commands = {}
-        # this is used to align the help menu
-        self._max_command_length = 0
+        # contains all the menus by name
         self._menues = {}
-        # istance of the root menu
-        self._menues[_ROOT_MENU] = MenuDescriptor(name=_ROOT_MENU)
+        # contains the current menu stack
+        self._menu_stack = []
+
+        self._istantiate_root_menu()
+
+
+    def _completer(self, text, state):
+        """Autocomplete function for the readline module."""
+        options = [command for command in self._menu_stack[-1].get_commands().keys() if command.startswith(text)]
+        if state < len(options):
+            return options[state] + " "
+        else:
+            return None
+
+    def _set_autocomplete(self):
+        if self._autocomplete:
+            match sys.platform:
+                case 'linux':
+                    readline.parse_and_bind("tab: complete")
+                    readline.parse_and_bind("set show-all-if-ambiguous on")
+                    readline.set_completer(self._completer)
+
+                case 'darwin':
+                    readline.parse_and_bind("bind ^I rl_complete")
+                    readline.parse_and_bind("set show-all-if-ambiguous on")
+                    readline.set_completer(self._completer)
+                case _:
+                    print("Autocomplete not supported for this OS")
+
 
     def _istantiate_root_menu(self) -> None:
         """Instantiate the root menu and register it in the menues list.
         """
         self._menues[_ROOT_MENU] = MenuDescriptor(name=_ROOT_MENU)
-        # register the root menu in the commands list
-        self._commands[_ROOT_MENU] = CommandModel(name="?", f=self._help_cmd, help_short="Show this help",
-                                                 help_long="Show this help", parameters=[])
+        self._menues[_ROOT_MENU].add_help_command()
         # register the exit command
-        self._commands["exit"] = CommandModel(name="exit", f=self._exit_cmd, help_short="Exit the program",
-                                                  help_long="Exit the program", parameters=[])
+        self._menues[_ROOT_MENU].register_command(self._exit_cmd, name="exit", help_short="Exit the program",
+                                                  help_long="Exit the program")
+        
+        self._menu_stack.append(self._menues[_ROOT_MENU])
 
 
     def _draw_panel(self, title: str , content: str, border_style: BorderStyle = BorderStyle.SINGLE_ROUNDED, columns: int = None) -> str:
@@ -43,41 +75,36 @@ class TinyCLI:
 
     def command(self, name: str = None, help_short: str = None, help_long: str = None) -> None:
         """Decorator to register a command in the __root_ CLI menu."""
+
+        if name in self._reserved_commands:
+            raise Exception(f"'{name}' is a reserved command name")
+
         def decorator(funct: Callable) -> Callable:
             def wrapper(*args, **kwargs):
-                try:
-                    funct(*args, **kwargs)
-                except Exception as ex:
-                    self._handle_exception(ex)
+                funct(*args, **kwargs)
 
-            self._menues[_ROOT_MENU].register_command(wrapper, funct, name, help_short, help_long)
+            self._menues[_ROOT_MENU].register_command(funct, name, help_short, help_long)
             return wrapper
         return decorator
 
+
     def change_prompt(self, prompt: str) -> None:
         self._prompt = prompt
+
 
     def _exit_cmd(self) -> None:
         """Exit the program."""
         self._exit = True
 
-    def _help(self) -> str:
-        return "\n".join([ command.short_help(self._max_command_length) for _, command in self._commands.items()])
-
-    def _help_specific_command(self, cmd: str) -> str:
-        if cmd not in self._commands:
-            # substitute with a custom exception
-            print(self._draw_panel("Error", f"Command '{cmd}' does not exists."))
-            print(self._help())
-            return ""
-
-        return f"Usage {cmd} {str(self._commands[cmd])}"
 
     def _handle_exception(self, ex) -> None:
         print(self._draw_panel("Error", str(ex)))
 
+
     def _parse_command_line(self, command_line: str) -> ParsedCommand:
         components = command_line.split()
+        if len(components) == 0:
+            return ParsedCommand(name="", parameters=[])
         command_name = components.pop(0)
 
         return ParsedCommand(name=command_name, parameters=components)
@@ -89,7 +116,7 @@ class TinyCLI:
             # split the command line into components
             #  - command name
             #  - parameters
-            cmd_descriptor = self._commands[command.name]
+            cmd_descriptor = self._menu_stack[-1].get_command(command.name)
             if len(command.parameters) == 0:
                 cmd_descriptor.f()
             else:
@@ -97,39 +124,31 @@ class TinyCLI:
                 # in ParsedCommand we don't store the type but only the value as a string
                 arguments = cmd_descriptor.cast_arguments(command.parameters)
                 cmd_descriptor.f(*arguments)
+        except CommandNotFound as ex:
+            print(self._draw_panel("Error", f"{ex}"))
+            self._menu_stack[-1].help()
+            return
         except ValueError as ex:
             print(self._draw_panel("Error", f"Error in parameters: {ex}"))
-        except KeyError:
-            print(self._draw_panel("Error", f"Command {command.name} not found. Type '?' for help."))
         except Exception as ex:
             print(self._draw_panel("Error", f"An error occurred: {ex}"))
 
 
     def run(self) -> None:
+
         # clear the screen and print the hello message (if exists)
         print("\033[H\033[J", end="")
+        self._set_autocomplete()
+
         if self._hello_message != "":
             print(self._hello_message)
         while self._exit is False:
-            # TODO substitute input with a for loop getchar
-            # in order to support up key and history command
             command = input(f"{self._prompt} ")
             if command == '':
                 continue
 
             parsed_command = self._parse_command_line(command)
+            if parsed_command.name == "":
+                continue
+            self._execute_command(parsed_command)
 
-            match parsed_command.name:
-                case 'exit':
-                    break
-                case '?':
-                    if len(parsed_command.parameters):
-                        print(self._help_specific_command(parsed_command.parameters[0]))
-                    else:
-                        print(self._help())
-                    continue
-                case _:  # wildcard - simile ad un else, deve stare alla fine
-                    if parsed_command.name not in self._commands:
-                        print(self._draw_panel("Error", f"Command {parsed_command.name} not found. Type '?' for help."))
-                        continue
-                    self._execute_command(parsed_command)

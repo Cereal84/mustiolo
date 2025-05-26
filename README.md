@@ -11,6 +11,8 @@ Mustiolo is designed to be simple, extensible, and easy to use.
 - **Command Registration**: Easily register commands using a decorator.
 - **Parameter Handling**: Supports type annotations, default values, and mandatory parameters.
 - **Help System**: Automatically generates help messages for commands and parameters.
+- **Command History**: Handle the command history like Unix-like systems.
+- **Autocomplete Command**: Command autocomplete via 'tab' key like Unix-like systems.
 - **Error Handling**: Captures and displays errors in a user-friendly format.
 - **Interactive CLI**: Provides an interactive prompt for executing commands.
 - **Customizable Message Boxes**: Displays messages in visually appealing bordered boxes.
@@ -54,7 +56,7 @@ from mustiolo.cli import TinyCLI
 cli = TinyCLI()
 
 @cli.command()
-def greet(name: str = "World"):
+def greet(name: str):
     """Greet a user by name."""
     print(f"Hello {name}!")
 
@@ -73,20 +75,13 @@ Example of execution
 Welcome to TinyCLI
 > ?
 greet    Greet a user by name.
-add    Add two numbers and print the result.
+add      Add two numbers and print the result.
 > exit
 ```
 
 It is possible to use the `?` command to see the usage of a specific command.
 
 ```bash
-> ? greet
-Usage greet Greet a user by name.
-
-greet NAME
-
-Parameters:
-		NAME	Type STRING [optional] [default: World]
 > ? add
 Usage add Add two numbers and print the result.
 
@@ -122,7 +117,7 @@ In this example we override the command name and the short help message, but we 
 Welcome to TinyCLI
 > ?
 greet    Greet a user by name.
-sum    Add two numbers
+sum      Add two numbers
 > ? sum
 Usage sum Add two numbers and print the result.
 
@@ -134,3 +129,25 @@ Parameters:
 > 
 ```
 
+## Mandatory and optional parameter/s
+
+The library uses the annotation and type hint to understand if a parameter is a mandatory or optional.
+If the argument in the function has a default value then the parameter in CLI command is optional, otherwise
+it is mandatory.
+
+```python
+@cli.command()
+def greet(name: str = "World"):
+    """Greet a user by name or print 'Hello World!'."""
+    print(f"Hello {name}!")
+```
+
+```bash
+> ? greet
+Usage greet Greet a user by name or print 'Hello World!'.
+
+greet NAME
+
+Parameters:
+		NAME	Type STRING [optional] [default: World]
+```

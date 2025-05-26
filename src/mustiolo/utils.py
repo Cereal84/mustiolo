@@ -1,5 +1,5 @@
 from typing import List, Callable
-from mustiolo.cli import ParameterModel
+from mustiolo.models.command import ParameterModel
 
 
 def get_defaults(fn: Callable):
