@@ -4,7 +4,7 @@ Mustiolo is a lightweight Python framework for building command-line interfaces 
 It allows to define commands, handle parameters, and provide user-friendly help messages with minimal effort. 
 Mustiolo is designed to be simple, extensible, and easy to use.
 
-![Logo]https://github.com/Cereal84/mustiolo/image/mustiolo.png)
+![Logo](https://github.com/Cereal84/mustiolo/blob/main/image/mustiolo.png)
 
 ---
 
