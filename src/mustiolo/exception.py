@@ -30,4 +30,11 @@ class CommandReserved(Exception):
         return f"Command '{self.command}' is a reserved one."
 
 
+class ParameterWrongType(Exception):
+    def __init__(self, value: str, expected_type: str):
+        self.value = value
+        self.expected_type = expected_type
+        super().__init__()
 
+    def __str__(self):
+        return f"Get '{self.value}' expected {self.expected_type}"

@@ -8,6 +8,26 @@ Mustiolo is designed to be simple, extensible, and easy to use.
 
 ---
 
+## Table of Contents
+
+- [Mustiolo](#mustiolo)
+  - [Table of Contents](#table-of-contents)
+  - [Features](#features)
+  - [Was there a need for another library?](#was-there-a-need-for-another-library)
+  - [Why this name?](#why-this-name)
+  - [Installation](#installation)
+  - [Basic usage](#basic-usage)
+    - [Defining commands](#defining-commands)
+  - [Override command information](#override-command-information)
+  - [Mandatory and optional parameter/s](#mandatory-and-optional-parameters)
+  - [Supported type for parameters](#supported-type-for-parameters)
+  - [Group commands](#group-commands)
+  - [Configure CLI](#configure-cli)
+  - [License](#license)
+
+---
+
+
 ## Features
 
 - **Command Registration**: Easily register commands using a decorator.
@@ -29,7 +49,7 @@ is an experiment to try to have the minimum code for building CLI applications.
 It must be considered as a toy library just to experiment.
 
 
-## Why this name ?
+## Why this name?
 
 The 'mustiolo' is the smallest mammal in the world, weighing about 1.2-2.5 grams as an adult. 
 It is present in Sardinia, in the Italian, Balkan, Iberian peninsulas and in North Africa.
@@ -94,7 +114,7 @@ Parameters:
 > exit
 ```
 
-## Override command informations
+## Override command information
 
 By default, the library uses as command name the function decorated via `@cli.command` and as short help message 
 the `docstring`.
@@ -152,9 +172,116 @@ Parameters:
 		NAME	Type STRING [optional] [default: World]
 ```
 
+
+## Supported type for parameters
+
+Mustiolo automatically converts command-line arguments to the types declared in your function signatures.  
+The following types are supported:
+
+- **str**: No conversion is performed; the argument is passed as a string.
+- **int**: The argument is converted to an integer.
+- **float**: The argument is converted to a float.
+- **bool**: Accepts `true`, `false`, `1`, `0` (case-insensitive). For example, `"true"` and `"1"` become `True`, `"false"` and `"0"` become `False`.
+- **List** (or `list`): Accepts a comma-separated string (e.g., `"a,b,c"` or `"1,2,3"`).  
+  - If a subtype is specified (e.g., `List[int]`), each element is converted to that type.
+  - Supported subtypes: `str`, `int`, `float`, `bool`.
+  - If no subtype is specified, elements are treated as strings.
+
+**Examples:**
+
+```python
+@cli.command()
+def example(a: int, b: float, c: bool, d: str, e: list, f: list[int]):
+    print(a, b, c, d, e, f)
+```
+
+```bash
+> example 5 3.14 true hello a,b,1 1,2,3
+# Output: 5 3.14 True hello ['a', 'b', '1'] [1, 2, 3]
+```
+
+**Notes:**
+- If the conversion fails (e.g., passing `"abc"` to an `int`), an error is shown.
+
+
+## Group commands
+It is possible to have a command tree specifyng a command group using `Menugroup` objects.
+The group have a name that specify the command root.
+
+```python
+from mustiolo.cli import CLI, MenuGroup
+
+from typing import List
+
+cli = CLI()
+
+# add the commands to the root menu
+@cli.command()
+def greet(name: str = "World"):
+    """Greet a user by name."""
+    print(f"Hello {name}!")
+
+math_submenu = MenuGroup("math", "Some math operations", "Some math operations")
+
+@math_submenu.command()
+def add(a: int, b: int):
+    """Add two numbers."""
+    print(f"The result is: {a + b}")
+
+@math_submenu.command()
+def add_list(numbers: List[int]):
+    """Add N numbers."""
+    tot = sum(numbers)
+    print(f"The result is: {tot}")
+
+@math_submenu.command()
+def sub(a: int, b: int):
+    """Subtract two numbers."""
+    print(f"The result is: {a - b}")
+
+# add math submenu to the root menu
+cli.add_group(math_submenu)
+
+
+if __name__ == "__main__":
+    cli.run()
+```
+
+So we have four commands in the root menu, by default the root menu has '?' and 'exit', as 
+you can see below:
+
+ - ?
+ - exit
+ - greet
+ - math
+
+and math specify other commands:
+ - add
+ - add_list
+ - sub
+
+```bash
+> ?
+?    	Shows this help.
+exit 	Exit the program
+greet	Greet a user by name.
+math    Some math operations
+> ? math
+add     	Add two numbers.
+add_list	Add N numbers.
+sub     	Subtract two numbers.
+
+```
+
 ## Configure CLI
 
 The constructor of the `CLI` class accepts some parameters to configure the CLI behavior:
    - 'hello_message': A welcome message displayed when the CLI starts, default is empty.
    - 'prompt': The prompt string displayed to the user, default is ">".
    - 'autocomplete': A boolean to enable or disable command autocomplete, default is True.
+
+
+## License
+
+This project is licensed under the MIT License.  
+See the [LICENSE](LICENSE) file for details.

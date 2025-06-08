@@ -4,7 +4,13 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [0.4.0]
+### Added
+- Support list argument in a command
+- Support command group or subcommand group
+- Autocomplete command
+
+## [0.3.0]
 ### Added
 - Support for multiple border styles (`SINGLE_ROUNDED`, `SINGLE_RECTANGLE`, etc.).
 - Capture exceptions during command execution and print an error
