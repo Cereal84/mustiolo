@@ -5,7 +5,7 @@ import sys
 # used to have history and arrow handling
 import readline
 
-from mustiolo.exception import *
+from mustiolo.exception import  CommandNotFound
 from mustiolo.message_box import BorderStyle, draw_message_box
 from mustiolo.models.parameters import ParsedCommand
 from mustiolo.models.command import CommandGroup
@@ -13,22 +13,21 @@ from mustiolo.models.command import CommandGroup
 
 class MenuGroup:
 
-    def __init__(self, name: str = "", short_help: str = "", long_help: str = ""):
-        self._group = CommandGroup(name, short_help, long_help)
+    def __init__(self, name: str = "", menu: str = "", usage: str = ""):
+        self._group = CommandGroup(name, menu, usage)
 
-
-    def command(self, name: str = None, help_short: str = None, help_long: str = None):
+    def command(self, name: str = None, menu: str = "", usage: str = ""):
         def decorator(f):
-            self._group.register_command(f, name, help_short, help_long)
+            self._group.register_command(f, name, menu, usage)
             return f
         return decorator
 
     def add_group(self, group: CommandGroup) -> None:
         self._group.add_command_group(group)
 
-
     def get_group(self) -> CommandGroup:
         return self._group
+
 
 class CLI:
 
@@ -42,7 +41,6 @@ class CLI:
         # contains all the menus by name
         self._menu = None
         self._istantiate_root_menu()
-
 
     def _completer(self, text, state):
         """
@@ -66,7 +64,6 @@ class CLI:
             split_line.pop(0)
             is_help_command = True
 
-
         # we have this cases
         # 1. no split_line, so we are at the root menu
         # 2. split_line and the last element is a command, so we need to autocomplete the command
@@ -84,7 +81,6 @@ class CLI:
             options.sort()
             return options[state] + " "
 
-        
         elif len(split_line) == 1:
             # we can have a full command, a partial command or a group
             if current_group.has_command(split_line[0]):
@@ -146,21 +142,6 @@ class CLI:
             return options[state] + " "
         return None
 
-
-
-    def _completer2(self, text, state):
-        """Autocomplete function for the readline module."""
-        # TODO: Implement a better autocomplete function.
-        # We need to goe through the command_path and find the correct menu
-
-        print(f"text: {text}, state: {state}")
-
-        options = [command for command in self._menu.get_commands().keys() if command.startswith(text)]
-        if state < len(options):
-            return options[state] + " "
-        else:
-            return None
-
     def _set_autocomplete(self):
         if self._autocomplete:
             match sys.platform:
@@ -175,17 +156,14 @@ class CLI:
                 case _:
                     print("Autocomplete not supported for this OS")
 
-
     def _istantiate_root_menu(self) -> None:
         """Instantiate the root menu and register it in the menues list.
         """
-        self._menu = CommandGroup(name="__root__", help_short="",  help_long="")
+        self._menu = CommandGroup(name="__root__", menu="",  usage="")
         self._menu.add_help_command()
         # register the exit command
-        self._menu.register_command(self._exit_cmd, name="exit", help_short="Exit the program",
-                                                  help_long="Exit the program")
-        
-
+        self._menu.register_command(self._exit_cmd, name="exit", menu="Exit the program",
+                                                  usage="Exit the program")
 
     def _draw_panel(self, title: str , content: str, border_style: BorderStyle = BorderStyle.SINGLE_ROUNDED, columns: int = None) -> str:
         """Draw panel with a title and content.
@@ -195,8 +173,7 @@ class CLI:
             cols = columns
         return draw_message_box(title, content, border_style, cols)
 
-
-    def command(self, name: str = None, help_short: str = None, help_long: str = None) -> None:
+    def command(self, name: str = None, menu: str = "", usage: str = "") -> None:
         """Decorator to register a command in the __root_ CLI menu."""
 
         if name in self._reserved_commands:
@@ -206,7 +183,7 @@ class CLI:
             def wrapper(*args, **kwargs):
                 funct(*args, **kwargs)
 
-            self._menu.register_command(funct, name, help_short, help_long)
+            self._menu.register_command(funct, name, menu, usage)
             return wrapper
         return decorator
 
@@ -258,7 +235,6 @@ class CLI:
             print(self._draw_panel("Error", f"Error in parameters: {ex}"))
         except Exception as ex:
             print(self._draw_panel("Error", f"An error occurred: {ex}"))
-
 
     def run(self) -> None:
 
