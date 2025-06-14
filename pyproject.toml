@@ -12,6 +12,7 @@ authors = [
     {name = "Alessandro Pischedda", email = "alessandro.pischedda@gmail.com"},
 ]
 keywords = ["cli", "command-line", "framework", "python"]
+requires-python = ">= 3.11"
 classifiers = [
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: MIT License",
@@ -21,3 +22,37 @@ dependencies = []
 
 [project.urls]
 Homepage = "https://github.com/Cereal84/mustiolo"
+
+
+
+[tool.ruff]
+line-length = 80
+indent-width = 4
+# Assume Python 3.11
+target-version = "py311"
+exclude = [
+    ".eggs",
+    ".git",
+    ".ipynb_checkpoints",
+    ".mypy_cache",
+    ".pytest_cache",
+    ".pytype",
+    ".ruff_cache",
+    ".venv",
+    ".vscode",
+    "__pypackages__",
+    "_build",
+    "build",
+    "dist",
+    "venv",
+]
+
+[tool.ruff.format]
+quote-style = "double"
+
+# Like Black, indent with spaces, rather than tabs.
+indent-style = "space"
+
+[tool.isort]
+profile = "black"
+lines_after_imports = 2
