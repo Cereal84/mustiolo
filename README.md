@@ -1,7 +1,7 @@
 # Mustiolo
 
 Mustiolo is a lightweight Python framework for building command-line interfaces (CLI).
-It allows to define commands, handle parameters, and provide user-friendly help messages with minimal effort. 
+It allows you to define commands, handle parameters, and provide user-friendly help messages with minimal effort.
 Mustiolo is designed to be simple, extensible, and easy to use.
 
 ![Logo](https://github.com/Cereal84/mustiolo/blob/main/image/mustiolo.png)
@@ -18,9 +18,13 @@ Mustiolo is designed to be simple, extensible, and easy to use.
   - [Installation](#installation)
   - [Basic usage](#basic-usage)
     - [Defining commands](#defining-commands)
+    - [Help format](#help-format)
   - [Override command information](#override-command-information)
-  - [Mandatory and optional parameter/s](#mandatory-and-optional-parameters)
-  - [Supported type for parameters](#supported-type-for-parameters)
+    - [Notes](#notes)
+      - [Menu](#menu)
+      - [Usage](#usage)
+  - [Mandatory and optional parameters](#mandatory-and-optional-parameters)
+  - [Supported Types for Parameters](#supported-types-for-parameters)
   - [Group commands](#group-commands)
   - [Configure CLI](#configure-cli)
   - [License](#license)
@@ -30,13 +34,12 @@ Mustiolo is designed to be simple, extensible, and easy to use.
 
 ## Features
 
-- **Command Registration**: Easily register commands using a decorator.
+- **Command Registration**: Easily register commands and subcommands using a decorator.
 - **Parameter Handling**: Supports type annotations, default values, and mandatory parameters.
 - **Help System**: Automatically generates help messages for commands and parameters.
 - **Command History**: Handle the command history like Unix-like systems.
 - **Autocomplete Command**: Command autocomplete via 'tab' key like Unix-like systems.
 - **Error Handling**: Captures and displays errors in a user-friendly format.
-- **Interactive CLI**: Provides an interactive prompt for executing commands.
 - **Customizable Message Boxes**: Displays messages in visually appealing bordered boxes.
 
 ---
@@ -72,6 +75,13 @@ pip install .
 
 Commands can be defined using the @command decorator. Each command can have a name, short help, and long help description.
 
+### Help format
+We've 2 types of 'help message':
+ - **menu help**: the description which must be showed in the menu help.
+ - **usage help**: is the command usage.
+
+Help messages are retrieved by looking the docstring. 
+
 ```python
 from mustiolo.cli import CLI
 
@@ -79,12 +89,19 @@ cli = CLI()
 
 @cli.command()
 def greet(name: str):
-    """Greet a user by name."""
+    """
+    <menu>Greet a user by name.</menu>
+    """
+    
     print(f"Hello {name}!")
 
 @cli.command()
 def add(a: int, b: int):
-    """Add two numbers and print the result."""
+    """
+    <short>Sum two numbers.</short>
+    <usage>Add two numbers and print the result.</usage>
+    """
+    
     print(f"The result is: {a + b}")
 
 if __name__ == "__main__":
@@ -96,7 +113,7 @@ Example of execution
 ```bash
 > ?
 greet    Greet a user by name.
-add      Add two numbers and print the result.
+add      Sum two numbers.
 > exit
 ```
 
@@ -104,7 +121,7 @@ It is possible to use the `?` command to see the usage of a specific command.
 
 ```bash
 > ? add
-Usage add Add two numbers and print the result.
+Add two numbers and print the result.
 
 add A B
 
@@ -121,25 +138,25 @@ the `docstring`.
 It is possible to override the information passing, in the decorator, the following arguments:
 
 - name
-- help_short
-- help_long
+- menu
+- usage
 
 So we can define a command like this:
 
 ```python
-@cli.command(name="sum", help_short="Add two numbers", help_long="Add two numbers and print the result.")
+@cli.command(name="sum", menu="Add two numbers", usage="Add two numbers and print the result.")
 def add(a: int, b: int):
     print(f"The result is: {a + b}")
 ```
 
-In this example we override the command name and the short help message, but we keep the long help message as it is.
+In this example, we override the command name and the short help message, but we keep the long help message as it is.
 
 ```bash
 > ?
 greet    Greet a user by name.
 sum      Add two numbers
 > ? sum
-Usage sum Add two numbers and print the result.
+Add two numbers and print the result.
 
 sum A B
 
@@ -149,11 +166,34 @@ Parameters:
 > 
 ```
 
-## Mandatory and optional parameter/s
+### Notes
 
-The library uses the annotation and type hint to understand if a parameter is a mandatory or optional.
-If the argument in the function has a default value then the parameter in CLI command is optional, otherwise
-it is mandatory.
+
+#### Menu
+`menu` message is mandatory and can be specified via docstring or parameter in `command` decorator.
+If both are void then an error will be returned.
+
+#### Usage
+`usage` works like `menu` and so it is possibile to be specified via docstring or decorator, but if none of them is
+set then will be used the `menu` value.
+
+The help message will be used in the following template
+
+```bash
+<usage message>
+
+<command_name> <parameter1> ... <parameterN>
+
+Parameters:
+    <parameter1_name> <type> [<mandatory/optional>]
+    ...
+    <parameterN_name> <type> [<mandatory/optional>]
+```
+
+## Mandatory and optional parameters
+
+The library uses annotations and type hints to determine if a parameter is mandatory or optional.
+If the argument in the function has a default value, then the parameter in the CLI command is optional; otherwise, it is mandatory.
 
 ```python
 @cli.command()
@@ -173,18 +213,19 @@ Parameters:
 ```
 
 
-## Supported type for parameters
+## Supported Types for Parameters
 
-Mustiolo automatically converts command-line arguments to the types declared in your function signatures.  
+Mustiolo automatically converts command-line arguments to the types declared in your function signatures. 
+For this reason, type annotation is mandatory; otherwise, an error will be shown and the CLI will exit.
 The following types are supported:
 
 - **str**: No conversion is performed; the argument is passed as a string.
 - **int**: The argument is converted to an integer.
 - **float**: The argument is converted to a float.
 - **bool**: Accepts `true`, `false`, `1`, `0` (case-insensitive). For example, `"true"` and `"1"` become `True`, `"false"` and `"0"` become `False`.
-- **List** (or `list`): Accepts a comma-separated string (e.g., `"a,b,c"` or `"1,2,3"`).  
+- **List (or `list`)**: Accepts a comma-separated string (e.g., `"a,b,c"` or `"1,2,3"`).  
   - If a subtype is specified (e.g., `List[int]`), each element is converted to that type.
-  - Supported subtypes: `str`, `int`, `float`, `bool`.
+  - Supported subtypes are: `str`, `int`, `float`, `bool`.
   - If no subtype is specified, elements are treated as strings.
 
 **Examples:**
