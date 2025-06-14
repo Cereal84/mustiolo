@@ -30,6 +30,17 @@ class CommandReserved(Exception):
         return f"Command '{self.command}' is a reserved one."
 
 
+class CommandMissingMenuMessage(Exception):
+    def __init__(self, fun_name: str, filename: str, lineno: int):
+        self.function_name = fun_name
+        self.filename = filename
+        self.lineno = lineno
+        super().__init__()
+    
+    def __str__(self):
+        return f"Missing menu message in '{self.function_name}' at '{self.filename}:{self.lineno}'"
+
+
 class ParameterWrongType(Exception):
     def __init__(self, value: str, expected_type: str):
         self.value = value
@@ -38,3 +49,13 @@ class ParameterWrongType(Exception):
 
     def __str__(self):
         return f"Get '{self.value}' expected {self.expected_type}"
+    
+class ParameterMissingType(Exception):
+    def __init__(self, fun_name: str, filename: str, lineno: int):
+        self.function_name = fun_name
+        self.filename = filename
+        self.lineno = lineno
+        super().__init__()
+    
+    def __str__(self):
+        return f"Function '{self.function_name}' at '{self.filename}:{self.lineno}' has a parameter without type"
