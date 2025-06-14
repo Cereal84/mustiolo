@@ -10,17 +10,17 @@ class ParsedCommand:
     parameters: List[Any]
 
 
-
 def ptype_to_str(ptype: Any) -> str:
-    if ptype == str:
+    # return ptype.__name__.upper()
+    if ptype is str:
         return "STRING"
-    if ptype == int:
+    if ptype is int:
         return "INTEGER"
-    if ptype == float:
+    if ptype is float:
         return "NUMBER"
-    if ptype == bool:
+    if ptype is bool:
         return "BOOLEAN"
-    if get_origin(ptype) == list:
+    if get_origin(ptype) is list:
         type_str = "LIST"
         if get_args(ptype) is not None:
             type_str += f"[{ptype_to_str(get_args(ptype)[0])}]"
@@ -43,12 +43,11 @@ class ParameterModel:
             msg.append("[required]")
         return "".join(msg)
 
-    def  convert_to_type(self, value: str) -> Any:
+    def convert_to_type(self, value: str) -> Any:
         
         try:
             # here we try to convert the value to the correct type
             # if it fails an exception is raised
-            ptype = self.ptype
             if get_origin(self.ptype) is list:
                 values = value.split(',')
                 subtype = get_args(self.ptype)[0] if len(get_args(self.ptype)) > 0 else None
@@ -56,5 +55,5 @@ class ParameterModel:
                     return [subtype(v) for v in values]
                 return values    
             return self.ptype(value)
-        except Exception as e:
+        except Exception:
             raise ParameterWrongType(value, ptype_to_str(self.ptype))
