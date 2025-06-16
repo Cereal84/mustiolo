@@ -98,7 +98,7 @@ def greet(name: str):
 @cli.command()
 def add(a: int, b: int):
     """
-    <short>Sum two numbers.</short>
+    <menu>Sum two numbers.</menu>
     <usage>Add two numbers and print the result.</usage>
     """
     
@@ -231,7 +231,7 @@ The following types are supported:
 **Examples:**
 
 ```python
-@cli.command()
+@cli.command(menu="Example command", usage="An example command with various types.")
 def example(a: int, b: float, c: bool, d: str, e: list, f: list[int]):
     print(a, b, c, d, e, f)
 ```
@@ -259,25 +259,28 @@ cli = CLI()
 # add the commands to the root menu
 @cli.command()
 def greet(name: str = "World"):
-    """Greet a user by name."""
+    """<menu>Greet a user by name.</menu>"""
     print(f"Hello {name}!")
 
 math_submenu = MenuGroup("math", "Some math operations", "Some math operations")
 
 @math_submenu.command()
 def add(a: int, b: int):
-    """Add two numbers."""
+    """
+    <menu>Sum two numbers.</menu>
+    <usage>Add two numbers and print the result.</usage>
+    """
     print(f"The result is: {a + b}")
 
 @math_submenu.command()
 def add_list(numbers: List[int]):
-    """Add N numbers."""
+    """<menu>Add N numbers.</menu>"""
     tot = sum(numbers)
     print(f"The result is: {tot}")
 
 @math_submenu.command()
 def sub(a: int, b: int):
-    """Subtract two numbers."""
+    """<menu>Subtract two numbers.</menu>"""
     print(f"The result is: {a - b}")
 
 # add math submenu to the root menu
