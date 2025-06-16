@@ -117,5 +117,5 @@ def test_command_group_with_empty_docstring():
         pass
 
     group = CommandGroup("test_group", "This is a test group")
-    with pytest.raises(CommandMissingMenuMessage) as e:
+    with pytest.raises(CommandMissingMenuMessage):
         group.register_command(test_command)
