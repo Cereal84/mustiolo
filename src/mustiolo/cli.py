@@ -16,9 +16,9 @@ class MenuGroup:
     def __init__(self, name: str = "", menu: str = "", usage: str = ""):
         self._group = CommandGroup(name, menu, usage)
 
-    def command(self, name: str = None, menu: str = "", usage: str = ""):
+    def command(self, name: str = None, alias: str = "", menu: str = "", usage: str = ""):
         def decorator(f):
-            self._group.register_command(f, name, menu, usage)
+            self._group.register_command(f, name, alias, menu, usage)
             return f
         return decorator
 
@@ -173,7 +173,7 @@ class CLI:
             cols = columns
         return draw_message_box(title, content, border_style, cols)
 
-    def command(self, name: str = None, menu: str = "", usage: str = "") -> None:
+    def command(self, name: str = None, alias: str = "", menu: str = "", usage: str = "") -> None:
         """Decorator to register a command in the __root_ CLI menu."""
 
         if name in self._reserved_commands:
@@ -183,7 +183,7 @@ class CLI:
             def wrapper(*args, **kwargs):
                 funct(*args, **kwargs)
 
-            self._menu.register_command(funct, name, menu, usage)
+            self._menu.register_command(funct, name, alias, menu, usage)
             return wrapper
         return decorator
 
@@ -222,15 +222,15 @@ class CLI:
             #  - parameters
             cmd_descriptor = current_menu.get_command(command.name)
             if len(command.parameters) == 0:
-                cmd_descriptor.f()
+                cmd_descriptor()
             else:
                 # special case which I want to change and make it works like the others
                 if command.name == "?":
-                    cmd_descriptor.f(command.parameters)
+                    cmd_descriptor(command.parameters)
                     return
                 
                 arguments = cmd_descriptor.cast_arguments(command.parameters)
-                cmd_descriptor.f(*arguments)
+                cmd_descriptor(*arguments)
         except ValueError as ex:
             print(self._draw_panel("Error", f"Error in parameters: {ex}"))
         except Exception as ex:
