@@ -175,7 +175,7 @@ class CommandGroup:
             raise CommandNotFound(name)
         return self._commands.get(name)
 
-    def get_commands(self) -> dict[str, Union[CommandModel, CommandAlias, CommandGroup]]:
+    def get_commands(self) -> dict[str, Union[CommandModel, CommandAlias, 'CommandGroup']]:
         return self._commands
 
     def get_usage(self, cmd: str) -> str:
