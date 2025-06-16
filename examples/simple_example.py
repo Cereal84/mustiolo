@@ -4,7 +4,7 @@ cli = CLI()
 
 @cli.command()
 def greet(name: str = "World"):
-    """Greet a user by name."""
+    """<menu>Greet a user by name.</menu>"""
     print(f"Hello {name}!")
 
 
