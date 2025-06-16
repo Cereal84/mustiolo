@@ -103,7 +103,7 @@ class CommandGroup:
         self._menu: str = menu
         self._usage: str = usage
         self._max_command_length = 0
-        self._current_cmd = CommandModel(f=None, name=name, menu=menu, usage=usage, parameters=[])
+        self._current_cmd = CommandModel(f=None, name=name, alias="", menu=menu, usage=usage, parameters=[])
 
     @property
     def name(self) -> str:

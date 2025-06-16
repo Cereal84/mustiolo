@@ -22,7 +22,7 @@ def test_command_group_with_commands():
         pass
     
     group = CommandGroup("test_group", "This is a test group")
-    group.register_command(test_command, "test_command", "This is a test command")
+    group.register_command(fn=test_command, name="test_command", alias="", menu="This is a test command")
     assert group.has_command("test_command")
     assert isinstance(group.get_command("test_command"), CommandModel)
     assert len(group.get_commands().keys()) == 1
@@ -39,7 +39,7 @@ def test_command_group_with_subgroups():
     group = CommandGroup("test_group", "This is a test group")
     subgroup = CommandGroup("test_subgroup", "This is a test subgroup")
     group.add_command_group(subgroup)
-    subgroup.register_command(test_command, "test_command", "This is a test command")
+    subgroup.register_command(fn=test_command, name="test_command", alias="", menu="This is a test command")
     assert group.has_command("test_subgroup")
     assert isinstance(group.get_command("test_subgroup"), CommandGroup)
     assert len(group.get_commands().keys()) == 1
@@ -61,7 +61,7 @@ def test_command_group_with_duplicate_commands():
         pass
 
     group = CommandGroup("test_group", "This is a test group")
-    group.register_command(test_command, "test_command", "This is a test command")
+    group.register_command(fn=test_command, name="test_command", alias="", menu="This is a test command")
     with pytest.raises(CommandDuplicate) as e:
         group.register_command(test_command2, "test_command", "This is a test command")
         assert str(e) == "CommandDuplicate: test_command is already defined in file <string> at line 0"
