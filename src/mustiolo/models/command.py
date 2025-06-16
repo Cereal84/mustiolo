@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Any, Dict, Callable, List, Optional, Union
+from typing import Any, Dict, Callable, List, Union
 
 from mustiolo.utils import parse_parameters, get_function_location, parse_docstring_for_menu_usage, get_function_metadata
 from mustiolo.models.parameters import ParameterModel
