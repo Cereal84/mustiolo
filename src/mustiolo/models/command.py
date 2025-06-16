@@ -1,9 +1,18 @@
 from dataclasses import dataclass, field
-from typing import Any, Dict, Callable, List, Union
+from typing import Any, Callable, Dict, List, Union
 
-from mustiolo.utils import parse_parameters, get_function_location, parse_docstring_for_menu_usage, get_function_metadata
+from mustiolo.exception import (
+    CommandDuplicate,
+    CommandMissingMenuMessage,
+    CommandNotFound,
+)
 from mustiolo.models.parameters import ParameterModel
-from mustiolo.exception import CommandDuplicate, CommandMissingMenuMessage, CommandNotFound
+from mustiolo.utils import (
+    get_function_location,
+    get_function_metadata,
+    parse_docstring_for_menu_usage,
+    parse_parameters,
+)
 
 
 @dataclass

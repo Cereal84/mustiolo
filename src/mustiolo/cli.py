@@ -1,14 +1,15 @@
 
-from collections.abc import Callable
 import os
-import sys
+
 # used to have history and arrow handling
 import readline
+import sys
+from collections.abc import Callable
 
-from mustiolo.exception import  CommandNotFound
+from mustiolo.exception import CommandNotFound
 from mustiolo.message_box import BorderStyle, draw_message_box
-from mustiolo.models.parameters import ParsedCommand
 from mustiolo.models.command import CommandGroup
+from mustiolo.models.parameters import ParsedCommand
 
 
 class MenuGroup:

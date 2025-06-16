@@ -1,8 +1,8 @@
 from dataclasses import dataclass
 from typing import Any, List, get_args, get_origin
 
-
 from mustiolo.exception import ParameterWrongType
+
 
 @dataclass
 class ParsedCommand:

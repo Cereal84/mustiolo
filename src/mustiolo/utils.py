@@ -1,9 +1,9 @@
 import re
-from typing import List, Callable
+from typing import Callable, List
 
 from mustiolo.exception import ParameterMissingType
-from mustiolo.models.parameters import ParameterModel
 from mustiolo.models.function_info import FunctionLocation, FunctionMetadata
+from mustiolo.models.parameters import ParameterModel
 
 
 def get_defaults(fn: Callable):
