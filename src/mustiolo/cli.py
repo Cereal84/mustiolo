@@ -5,6 +5,7 @@ import os
 import readline
 import sys
 from collections.abc import Callable
+from typing import Union
 
 from mustiolo.exception import CommandNotFound
 from mustiolo.message_box import BorderStyle, draw_message_box
@@ -17,7 +18,7 @@ class MenuGroup:
     def __init__(self, name: str = "", menu: str = "", usage: str = ""):
         self._group = CommandGroup(name, menu, usage)
 
-    def command(self, name: str = None, alias: str = "", menu: str = "", usage: str = ""):
+    def command(self, name: Union[str, None] = None, alias: str = "", menu: str = "", usage: str = "") -> Callable:
         def decorator(f):
             self._group.register_command(f, name, alias, menu, usage)
             return f
@@ -40,7 +41,7 @@ class CLI:
         self._reserved_commands = ["?", "exit"] 
         self._columns = os.get_terminal_size().columns
         # contains all the menus by name
-        self._menu = None
+        self._menu : Union[CommandGroup, None] = None
         self._istantiate_root_menu()
 
     def _completer(self, text, state):
@@ -143,7 +144,7 @@ class CLI:
             return options[state] + " "
         return None
 
-    def _set_autocomplete(self):
+    def _set_autocomplete(self) -> None:
         if self._autocomplete:
             match sys.platform:
                 case 'linux':
@@ -174,7 +175,7 @@ class CLI:
             cols = columns
         return draw_message_box(title, content, border_style, cols)
 
-    def command(self, name: str = None, alias: str = "", menu: str = "", usage: str = "") -> None:
+    def command(self, name: Union[str, None] = None, alias: str = "", menu: str = "", usage: str = "") -> None:
         """Decorator to register a command in the __root_ CLI menu."""
 
         if name in self._reserved_commands:
@@ -201,7 +202,7 @@ class CLI:
         self._exit = True
 
 
-    def _handle_exception(self, ex) -> None:
+    def _handle_exception(self, ex: Exception) -> None:
         print(self._draw_panel("Error", str(ex)))
 
 
@@ -215,7 +216,7 @@ class CLI:
         return ParsedCommand(name=command_name, parameters=components)
 
 
-    def _execute_command(self, current_menu: CommandGroup,command: ParsedCommand):
+    def _execute_command(self, current_menu: CommandGroup, command: ParsedCommand) -> None:
 
         try:
             # split the command line into components
@@ -250,7 +251,7 @@ class CLI:
             if command_path == '':
                 continue
             
-            command_path = command_path.split()
+            commands = command_path.split()
             # here we have a list of string that is the command path
             # plus eventually some parameters.
             # So we need to goes trought the menu command by command
@@ -261,7 +262,7 @@ class CLI:
 
             try:
                 while True:
-                    command = command_path.pop(0)
+                    command = commands.pop(0)
                     if not current_menu.has_command(command):
                         raise CommandNotFound(command)
 
@@ -273,7 +274,7 @@ class CLI:
 
                     break
                 # here current_menu is a Command
-                parsed_command = self._parse_command_line(command + " " + (" ".join(command_path)))
+                parsed_command = self._parse_command_line(command + " " + (" ".join(commands)))
                 if parsed_command.name == "":
                     continue
                 self._execute_command(current_menu, parsed_command)

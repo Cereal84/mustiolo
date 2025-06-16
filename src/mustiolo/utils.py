@@ -1,12 +1,12 @@
 import re
-from typing import Callable, List
+from typing import Any, Callable, Dict, List
 
 from mustiolo.exception import ParameterMissingType
 from mustiolo.models.function_info import FunctionLocation, FunctionMetadata
 from mustiolo.models.parameters import ParameterModel
 
 
-def get_defaults(fn: Callable):
+def get_defaults(fn: Callable) -> Dict[str, Any]:
     """
     Get the default values of the passed function or method.
         """

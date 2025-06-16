@@ -32,7 +32,7 @@ class CommandModel:
     parameters: List[ParameterModel] = field(default_factory=list)
 
     def __str__(self) -> str:
-        return self.usage()
+        return self.get_usage()
 
     def get_menu(self, padding: int) -> str:
         name_and_alias = self.name
@@ -79,7 +79,7 @@ class CommandAlias:
     command: CommandModel
 
     def __str__(self) -> str:
-        return self.command.usage()
+        return self.command.get_usage()
 
     def get_menu(self, padding: int) -> str:
         return self.command.get_menu(padding)
@@ -96,8 +96,10 @@ class CommandAlias:
     def cast_arguments(self, args: List[str]) -> List[Any]:
         return self.command.cast_arguments(args)
 
-    def __call__(self, *args, **kwargs) -> Any:
-        return self.command.f(*args, **kwargs)
+    def __call__(self, *args, **kwargs) -> Union[Any, None]:
+        if self.command.f is None:
+            return None
+        return self.command(*args, **kwargs)
 
 
 class CommandGroup:
@@ -118,7 +120,7 @@ class CommandGroup:
     def name(self) -> str:
         return self._name
 
-    def add_help_command(self):
+    def add_help_command(self) -> None:
         self.register_command(self.help, name="?", menu="Shows this help.")
 
     def add_command_group(self, group: 'CommandGroup') -> None:
@@ -127,7 +129,7 @@ class CommandGroup:
         
         self._commands[group._name] = group
 
-    def register_command(self, fn: Callable, name: str = None, alias: str = "",
+    def register_command(self, fn: Callable, name: Union[str, None] = None, alias: str = "",
                           menu: str = "", usage: str = "") -> None:
 
         docstring_msgs = parse_docstring_for_menu_usage(fn)
@@ -173,7 +175,7 @@ class CommandGroup:
             raise CommandNotFound(name)
         return self._commands.get(name)
 
-    def get_commands(self) -> dict[str, CommandModel]:
+    def get_commands(self) -> dict[str, Union[CommandModel, CommandAlias, CommandGroup]]:
         return self._commands
 
     def get_usage(self, cmd: str) -> str:
