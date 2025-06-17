@@ -26,6 +26,7 @@ Mustiolo is designed to be simple, extensible, and easy to use.
   - [Mandatory and optional parameters](#mandatory-and-optional-parameters)
   - [Supported Types for Parameters](#supported-types-for-parameters)
   - [Group commands](#group-commands)
+  - [Command Alias](#command-alias)
   - [Configure CLI](#configure-cli)
   - [License](#license)
 
@@ -317,7 +318,7 @@ sub     	Subtract two numbers.
 
 ```
 
-## Add alias
+## Command Alias
 
 It is possible to add alias to a command (not to a command group), you can do that in the
  `command` decorator.
