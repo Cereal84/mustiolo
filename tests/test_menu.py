@@ -1,4 +1,4 @@
-from mustiolo.menu import MenuGroup
+from mustiolo.cli import MenuGroup
 import pytest
 
 
@@ -17,4 +17,4 @@ def test_menu_group_with_reserved_command():
         def command_exit():
             pass
 
-    assert len(group.get_commands().keys()) == 0
+    assert len(group.get_group().get_commands().keys()) == 0

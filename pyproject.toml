@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "mustiolo"
-version = "0.4.0"
+version = "0.5.0"
 description = "A lightweight Python framework for building command-line interfaces (CLI)."
 readme = "README.md"
 license = {text = "MIT"}

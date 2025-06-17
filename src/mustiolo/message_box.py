@@ -1,6 +1,7 @@
 from enum import IntEnum
 from typing import List
 
+
 TOP_LEFT = 0
 TOP_RIGHT = 1
 BOTTOM_LEFT = 2

@@ -1,9 +1,18 @@
 from dataclasses import dataclass, field
-from typing import Any, Dict, Callable, List, Union
+from typing import Any, Callable, Dict, List, Union
 
-from mustiolo.utils import parse_parameters, get_function_location, parse_docstring_for_menu_usage, get_function_metadata
+from mustiolo.exception import (
+    CommandDuplicate,
+    CommandMissingMenuMessage,
+    CommandNotFound,
+)
 from mustiolo.models.parameters import ParameterModel
-from mustiolo.exception import CommandDuplicate, CommandMissingMenuMessage, CommandNotFound
+from mustiolo.utils import (
+    get_function_location,
+    get_function_metadata,
+    parse_docstring_for_menu_usage,
+    parse_parameters,
+)
 
 
 @dataclass
@@ -14,18 +23,22 @@ class CommandModel:
        'f' contains doc, name and parameters so in this case we're duplicating
        those informations
     """
-    name: str
-    f: Union[Callable, None]
-    menu: str
-    usage: str
+    name: str = ""
+    alias: str = ""
+    f: Union[Callable, None] = None
+    menu: str = ""
+    usage: str = ""
     # TODO: change parameters into arguments
     parameters: List[ParameterModel] = field(default_factory=list)
 
     def __str__(self) -> str:
-        return self.usage()
+        return self.get_usage()
 
     def get_menu(self, padding: int) -> str:
-        return f"{self.name.ljust(padding)}\t{self.menu}"
+        name_and_alias = self.name
+        if len(self.alias) > 0:
+            name_and_alias +=  f", {self.alias}"
+        return f"{name_and_alias.ljust(padding)}\t\t{self.menu}"
 
     def get_usage(self) -> str:
         help_msg = [f"{self.usage}\n\n{self.name} {' '.join([p.name.upper() for p in self.parameters])}"]
@@ -61,24 +74,53 @@ class CommandModel:
         return self.f(*args, **kwargs)
 
 
+@dataclass
+class CommandAlias:
+    command: CommandModel
+
+    def __str__(self) -> str:
+        return self.command.get_usage()
+
+    def get_menu(self, padding: int) -> str:
+        return self.command.get_menu(padding)
+
+    def get_usage(self) -> str:
+        return self.command.get_usage()
+
+    def get_mandatory_parameters(self) -> List[ParameterModel]:
+        return self.command.get_mandatory_parameters()
+
+    def get_optional_parameters(self) -> List[ParameterModel]:
+        return self.command.get_optional_parameters()
+
+    def cast_arguments(self, args: List[str]) -> List[Any]:
+        return self.command.cast_arguments(args)
+
+    def __call__(self, *args, **kwargs) -> Union[Any, None]:
+        if self.command.f is None:
+            return None
+        return self.command(*args, **kwargs)
+
+
 class CommandGroup:
     """
     This class contains a set of CommandsModel and/or CommandGroup, in
     this way we can define a command tree.
     """
     def __init__(self, name: str, menu : str = "", usage: str = ""):
-        self._commands: Dict[str, Union[CommandModel, CommandGroup ]] = {}
+        # commands key is the command name and its alias (2 entries which points to the same value)
+        self._commands: Dict[str, Union[CommandModel, CommandGroup, CommandAlias]] = {}
         self._name: str = name
         self._menu: str = menu
         self._usage: str = usage
         self._max_command_length = 0
-        self._current_cmd = CommandModel(f=None, name=name, menu=menu, usage=usage, parameters=[])
+        self._current_cmd = CommandModel(f=None, name=name, alias="", menu=menu, usage=usage, parameters=[])
 
     @property
     def name(self) -> str:
         return self._name
 
-    def add_help_command(self):
+    def add_help_command(self) -> None:
         self.register_command(self.help, name="?", menu="Shows this help.")
 
     def add_command_group(self, group: 'CommandGroup') -> None:
@@ -87,7 +129,7 @@ class CommandGroup:
         
         self._commands[group._name] = group
 
-    def register_command(self, fn: Callable, name: str = None,
+    def register_command(self, fn: Callable, name: Union[str, None] = None, alias: str = "",
                           menu: str = "", usage: str = "") -> None:
 
         docstring_msgs = parse_docstring_for_menu_usage(fn)
@@ -107,19 +149,23 @@ class CommandGroup:
         if command_usage == "":
             command_usage = command_menu
 
-        # TODO while register the commands store also the max command length and max short help length
-        # in order to print the help in a better way.
-        if len(command_name) > self._max_command_length:
+        if len(command_name) + len(", ") + len(alias) > self._max_command_length:
             self._max_command_length = len(command_name)
 
         if command_name in self._commands.keys():
             location = get_function_location(fn)
             raise CommandDuplicate(command_name, location.filename, location.lineno)
 
+        if alias in self._commands.keys():
+            location = get_function_location(fn)
+            raise CommandDuplicate(alias, location.filename, location.lineno)
+
         parameters = parse_parameters(fn)
-        model = CommandModel(name=command_name, f=fn, menu=command_menu, usage=command_usage,
+        cmd = CommandModel(name=command_name, alias=alias, f=fn, menu=command_menu, usage=command_usage,
                              parameters=parameters)
-        self._commands[command_name] = model
+        self._commands[command_name] = cmd
+        if len(alias) > 0:
+            self._commands[alias] = CommandAlias(command=cmd)
 
     def has_command(self, name: str) -> bool:
         return name in self._commands
@@ -129,7 +175,7 @@ class CommandGroup:
             raise CommandNotFound(name)
         return self._commands.get(name)
 
-    def get_commands(self) -> dict[str, CommandModel]:
+    def get_commands(self) -> dict[str, Union[CommandModel, CommandAlias, 'CommandGroup']]:
         return self._commands
 
     def get_usage(self, cmd: str) -> str:
@@ -142,7 +188,7 @@ class CommandGroup:
         """
 
         if len(cmd_path) == 0:
-            print("\n".join([ command.get_menu(self._max_command_length) for _, command in self._commands.items()]))
+            print("\n".join([ command.get_menu(self._max_command_length) for _, command in self._commands.items() if not isinstance(command, CommandAlias)]))
             return
  
         cmd_name = cmd_path.pop(0)

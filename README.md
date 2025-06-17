@@ -26,6 +26,7 @@ Mustiolo is designed to be simple, extensible, and easy to use.
   - [Mandatory and optional parameters](#mandatory-and-optional-parameters)
   - [Supported Types for Parameters](#supported-types-for-parameters)
   - [Group commands](#group-commands)
+  - [Command Alias](#command-alias)
   - [Configure CLI](#configure-cli)
   - [License](#license)
 
@@ -323,6 +324,27 @@ add_list	Add N numbers.
 sub     	Subtract two numbers.
 
 ```
+
+## Command Alias
+
+It is possible to add alias to a command (not to a command group), you can do that in the
+ `command` decorator.
+
+```python
+
+@cli.command(alias="names", menu="Shows a name list.")
+def list_names():
+    print(", ".join["Luca", "Mark", "Laura", "Watson"])
+
+```
+
+```bash
+
+list_names, names	Shows a name list.
+
+```
+
+The autocomplete, if enabled, works on aliases too.
 
 ## Configure CLI
 

@@ -18,7 +18,7 @@ def add(a: int, b: int):
     """<menu>Add two numbers.</menu>"""
     print(f"The result is: {a + b}")
 
-@math_submenu.command()
+@math_submenu.command(alias="alist")
 def add_list(numbers: List[int]):
     """<menu>Add N numbers.</menu>
        <usage>
