@@ -64,6 +64,13 @@ This library aims to be the smallest library for building CLI applications in Py
 
 To install Mustiolo, you can use pip:
 
+
+```bash
+pip install mustiolo
+```
+
+or using the code in the repository:
+
 ```bash
 git clone git@github.com:Cereal84/mustiolo.git
 cd mustiolo
