@@ -253,13 +253,18 @@ def example(a: int, b: float, c: bool, d: str, e: list, f: list[int]):
 - If the conversion fails (e.g., passing `"abc"` to an `int`), an error is shown.
 
 
-## Group commands
-It is possible to have a command tree specifyng a command group using `Menugroup` objects.
-The group have a name that specify the command root.
+## Commands
+
+We have 2 types of command groups:
+1. **MenuGroup**: Represent a sub command, so a branch in the CLI tree.
+2. **CommandCollection**: is a collection of commands, useful if you want to organize the cli commands in different
+     files or modules. It is possible to add a `CommandCollection` to the root menu or to `MenuGroup`.
+
+
+### MenuGroup
 
 ```python
 from mustiolo.cli import CLI, MenuGroup
-
 from typing import List
 
 cli = CLI()
@@ -299,18 +304,8 @@ if __name__ == "__main__":
     cli.run()
 ```
 
-So we have four commands in the root menu, by default the root menu has '?' and 'exit', as 
-you can see below:
-
- - ?
- - exit
- - greet
- - math
-
-and math specify other commands:
- - add
- - add_list
- - sub
+So we have four commands in the root menu, by default the root menu has '?' and 'exit'.
+`math` command is a submenu, so if we type `? math` we will see the commands in the `math` submenu:
 
 ```bash
 > ?
@@ -324,6 +319,84 @@ add_list	Add N numbers.
 sub     	Subtract two numbers.
 
 ```
+
+### CommandCollection
+
+```python
+# commands.py
+from mustiolo.cli import CommandCollection
+
+cmd_collection = CommandCollection()
+
+@cmd_collection.command(name="greet", menu="Greet a user by name.")
+def greet(name: str = "World"):
+    """Greet a user by name."""
+    print(f"Hello {name}!")
+
+@cmd_collection.command(menu="Say goodbye")
+def goodbye():
+    print("Goodbye!")
+
+# main.py
+from mustiolo.cli import CLI
+from commands import cmd_collection
+cli = CLI()
+
+cli.add_group(cmd_collection)
+
+
+if __name__ == "__main__":
+    cli.run()
+```
+If we execute the above code, we will have the following commands in the root menu:
+
+```bash
+- ?
+- exit
+- goodbye
+- greet
+``` 
+
+It is possible to add a `CommandCollection` to a `MenuGroup` too, the commands will be added as subcommands of the group.
+
+```python
+from mustiolo.cli import CLI, MenuGroup, CommandCollection
+from typing import List
+
+math_cmds = CommandCollection()
+
+@math_cmds.command()
+def add(a: int, b: int):
+    """
+    <menu>Sum two numbers.</menu>
+    <usage>Add two numbers and print the result.</usage>
+    """
+    print(f"The result is: {a + b}")
+
+@math_cmds.command()
+def add_list(numbers: List[int]):
+    """<menu>Add N numbers.</menu>"""
+    tot = sum(numbers)
+    print(f"The result is: {tot}")
+
+@math_cmds.command()
+def sub(a: int, b: int):
+    """<menu>Subtract two numbers.</menu>"""
+    print(f"The result is: {a - b}")
+
+math_submenu = MenuGroup("math", "Some math operations", "Some math operations")
+
+math_submenu.add_group(math_cmds)
+
+cli = CLI()
+cli.add_group(math_submenu)
+if __name__ == "__main__":
+    cli.run()
+```
+
+In this way we can have a collection of commands in a `MenuGroup`, so we can organize the commands in different files 
+or modules.
+
 
 ## Command Alias
 

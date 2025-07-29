@@ -9,14 +9,32 @@ from typing import Union
 
 from mustiolo.exception import CommandNotFound
 from mustiolo.message_box import BorderStyle, draw_message_box
-from mustiolo.models.command import CommandGroup
+from mustiolo.models.command import CommandGroup, SubCommandGroup
 from mustiolo.models.parameters import ParsedCommand
+
+class CommandCollection:
+    """This class is used to collect all the commands and command groups."""
+    def __init__(self):
+        self._group = CommandGroup()
+
+    def command(self, name: Union[str, None] = None, alias: str = "", menu: str = "", usage: str = "") -> Callable:
+        def decorator(f):
+            self._group.register_command(f, name, alias, menu, usage)
+            return f
+
+        return decorator
+
+    def add_commands(self, group: 'CommandCollection') -> None:
+        self._group.include_commands(group.get_group())
+
+    def get_group(self) -> CommandGroup:
+        return self._group
 
 
 class MenuGroup:
 
     def __init__(self, name: str = "", menu: str = "", usage: str = ""):
-        self._group = CommandGroup(name, menu, usage)
+        self._group = SubCommandGroup(name, menu, usage)
 
     def command(self, name: Union[str, None] = None, alias: str = "", menu: str = "", usage: str = "") -> Callable:
         def decorator(f):
@@ -24,10 +42,20 @@ class MenuGroup:
             return f
         return decorator
 
-    def add_group(self, group: CommandGroup) -> None:
-        self._group.add_command_group(group)
+    def add_commands(self, commands: Union[CommandCollection, 'MenuGroup']) -> None:
+        self._group.include_commands(commands.get_group())
 
-    def get_group(self) -> CommandGroup:
+    '''def add_subgroup(self, subgroup: 'MenuGroup') -> None:
+        """Add a subgroup to the current group."""
+        self._group.add_command_group(subgroup.get_group())
+        
+
+    def add_commands(self, commands: CommandCollection) -> None:
+        """Add a collection of commands to the group."""
+        for cmd in commands.get_group().get_commands().values():
+            self._group.register_command(cmd.f, cmd.name, cmd.alias, cmd.menu, cmd.usage)'''
+
+    def get_group(self) -> SubCommandGroup:
         return self._group
 
 
@@ -41,7 +69,7 @@ class CLI:
         self._reserved_commands = ["?", "exit"] 
         self._columns = os.get_terminal_size().columns
         # contains all the menus by name
-        self._menu : Union[CommandGroup, None] = None
+        self._menu : Union[CommandGroup, SubCommandGroup] = None
         self._istantiate_root_menu()
 
     def _completer(self, text, state):
@@ -60,7 +88,7 @@ class CLI:
         line_buffer = readline.get_line_buffer()
         split_line = line_buffer.strip().split()
 
-        # in case of help command ('?') as first commmand we need to remove it
+        # in case of help command ('?') as first command we need to remove it
         # in order to have the correct command path and autocomplete
         if len(split_line) > 0 and split_line[0] == "?":
             split_line.pop(0)
@@ -77,7 +105,7 @@ class CLI:
         # [command]
         # [command, ...,  partial_command]
         if len(split_line) == 0:
-            options = [name for name in current_group.get_commands().keys()]
+            options = [name for name in current_group.commands.keys()]
             if is_help_command:
                 options.remove("?")
             options.sort()
@@ -87,26 +115,26 @@ class CLI:
             # we can have a full command, a partial command or a group
             if current_group.has_command(split_line[0]):
                 # is a complete command.
-                # get it and check if it is a CommandGroup
+                # get it and check if it is a SubCommandGroup
                 cmd = current_group.get_command(split_line[0])
-                if isinstance(cmd, CommandGroup):
+                if isinstance(cmd, SubCommandGroup):
                     # get all the subcommands for this group
-                    options = [name for name in cmd.get_commands().keys()]
+                    options = [name for name in cmd.commands.keys()]
                 else:
                     # get only the command that starts with the partial command
-                    options = [name for name in current_group.get_commands().keys() if name.startswith(split_line[-1])]
+                    options = [name for name in current_group.commands.keys() if name.startswith(split_line[-1])]
 
             else:
                 # is not a complete command, so we need to check if a subcommand starts with it
                 # in the current group
-                options = [name for name in current_group.get_commands().keys() if name.startswith(split_line[-1])]
+                options = [name for name in current_group.commands.keys() if name.startswith(split_line[-1])]
 
         else:
             # Traverse the command path to the deepest CommandGroup
             for part in split_line[:-1]:
                 if current_group.has_command(part.strip()):
                     cmd = current_group.get_command(part.strip())
-                    if isinstance(cmd, CommandGroup):
+                    if isinstance(cmd, SubCommandGroup):
                         current_group = cmd
                         continue
                     else:
@@ -123,15 +151,15 @@ class CLI:
             if current_group.has_command(check_cmd):
                 # is a complete command
                 cmd = current_group.get_command(check_cmd)
-                if isinstance(cmd, CommandGroup):
+                if isinstance(cmd, SubCommandGroup):
                     # get all the subcommands for this group
-                    options = [name for name in current_group.get_commands().keys()]
+                    options = [name for name in current_group.commands.keys()]
                 else:
                     # get only the command that starts with the partial command
-                    options = [name for name in current_group.get_commands().keys() if name.startswith(split_line[-1])] 
+                    options = [name for name in current_group.commands.keys() if name.startswith(split_line[-1])]
             else:
                 # is a partial command
-                options = [name for name in current_group.get_commands().keys() if name.startswith(split_line[-1])]
+                options = [name for name in current_group.commands.keys() if name.startswith(split_line[-1])]
                 
         options.sort()
 
@@ -161,7 +189,7 @@ class CLI:
     def _istantiate_root_menu(self) -> None:
         """Instantiate the root menu and register it in the menues list.
         """
-        self._menu = CommandGroup(name="__root__", menu="",  usage="")
+        self._menu = SubCommandGroup(name="__root__", menu="",  usage="")
         self._menu.add_help_command()
         # register the exit command
         self._menu.register_command(self._exit_cmd, name="exit", menu="Exit the program",
@@ -189,8 +217,16 @@ class CLI:
             return wrapper
         return decorator
 
+
+    def add_commands(self, commands: Union[CommandCollection, MenuGroup]) -> None:
+        """Add a collection of commands to the root menu."""
+        if not isinstance(commands, (CommandCollection, MenuGroup)):
+            raise TypeError("commands must be an instance of CommandCollection or MenuGroup")
+
+        self._menu.include_commands(commands.get_group())
+
     def add_group(self, group: MenuGroup) -> None:
-        self._menu.add_command_group(group.get_group())
+        self._menu.include_commands(group.get_group())
 
 
     def change_prompt(self, prompt: str) -> None:
@@ -216,7 +252,7 @@ class CLI:
         return ParsedCommand(name=command_name, parameters=components)
 
 
-    def _execute_command(self, current_menu: CommandGroup, command: ParsedCommand) -> None:
+    def _execute_command(self, current_menu: SubCommandGroup, command: ParsedCommand) -> None:
 
         try:
             # split the command line into components
@@ -267,7 +303,7 @@ class CLI:
                         raise CommandNotFound(command)
 
                     entry = current_menu.get_command(command)
-                    if isinstance(entry, CommandGroup):
+                    if isinstance(entry, SubCommandGroup):
                         # we need to go to the next sub group
                         current_menu = entry
                         continue

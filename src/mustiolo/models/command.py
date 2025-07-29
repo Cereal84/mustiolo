@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Union
+from typing import Any, Callable, Dict, List, NewType, Union
 
 from mustiolo.exception import (
     CommandDuplicate,
@@ -14,6 +14,9 @@ from mustiolo.utils import (
     parse_parameters,
 )
 
+CommandsType = NewType('CommandsType', Dict[str, Union['CommandModel', 'CommandAlias',
+                                                        'SubCommandGroup']])
+
 
 @dataclass
 class CommandModel:
@@ -21,13 +24,13 @@ class CommandModel:
        for handle checks on the command.
 
        'f' contains doc, name and parameters so in this case we're duplicating
-       those informations
+       this information
     """
     name: str = ""
     alias: str = ""
     f: Union[Callable, None] = None
-    menu: str = ""
-    usage: str = ""
+    menu: str = ""   # this is the short help message
+    usage: str = ""  # this is the long help message
     # TODO: change parameters into arguments
     parameters: List[ParameterModel] = field(default_factory=list)
 
@@ -44,7 +47,7 @@ class CommandModel:
         help_msg = [f"{self.usage}\n\n{self.name} {' '.join([p.name.upper() for p in self.parameters])}"]
         if len(self.parameters) == 0:
             return help_msg[0]
-
+        
         help_msg.append("\nParameters:")
         help_msg.extend([str(p) for p in self.parameters])
         return "\n".join(help_msg)
@@ -101,33 +104,37 @@ class CommandAlias:
             return None
         return self.command(*args, **kwargs)
 
-
+# TODO find a better name for this class, maybe CommandSet or CommandCollection
 class CommandGroup:
     """
-    This class contains a set of CommandsModel and/or CommandGroup, in
+    This class contains a set of CommandsModel and/or SubCommandGroup, in
     this way we can define a command tree.
     """
-    def __init__(self, name: str, menu : str = "", usage: str = ""):
+    def __init__(self):
         # commands key is the command name and its alias (2 entries which points to the same value)
-        self._commands: Dict[str, Union[CommandModel, CommandGroup, CommandAlias]] = {}
-        self._name: str = name
-        self._menu: str = menu
-        self._usage: str = usage
+        self._commands: CommandsType = {}
         self._max_command_length = 0
-        self._current_cmd = CommandModel(f=None, name=name, alias="", menu=menu, usage=usage, parameters=[])
 
     @property
-    def name(self) -> str:
-        return self._name
+    def commands(self) -> CommandsType:
+        """
+        Returns the commands in this group.
+        """
+        return self._commands
 
-    def add_help_command(self) -> None:
-        self.register_command(self.help, name="?", menu="Shows this help.")
+    @property
+    def max_command_length(self) -> int:
+        """
+        Returns the maximum length of the command name in this group.
+        This is used to format the help menu.
+        """
+        return self._max_command_length
 
-    def add_command_group(self, group: 'CommandGroup') -> None:
-        if group._name in self._commands:
-            raise Exception(f"Command with name '{group._name}' already exists")
-        
-        self._commands[group._name] = group
+    def has_command(self, name: str) -> bool:
+        """
+        Check if the command with the given name exists in this group.
+        """
+        return name in self._commands
 
     def register_command(self, fn: Callable, name: Union[str, None] = None, alias: str = "",
                           menu: str = "", usage: str = "") -> None:
@@ -167,16 +174,58 @@ class CommandGroup:
         if len(alias) > 0:
             self._commands[alias] = CommandAlias(command=cmd)
 
-    def has_command(self, name: str) -> bool:
-        return name in self._commands
-    
+    def include_commands(self, cmds: Union['CommandGroup', 'SubCommandGroup']) -> None:
+        """
+        Include commands from another CommandGroup into this one.
+        This will not replace existing commands.
+        The merged commands will be available in the current group.
+        """
+
+        if isinstance(cmds, SubCommandGroup):
+            # if the cmds is a SubCommandGroup we need to include SubCommandGroup.
+            # We need to check if the SubCommandGroup name is already in  the commands
+            if cmds.name in self._commands:
+                # probably we need to raise a custom exception here
+                raise CommandDuplicate(cmds.name, cmds._current_cmd.f.__code__.co_filename, cmds._current_cmd.f.__code__.co_firstlineno)
+            self._commands[cmds.name] = cmds
+            return
+
+        if isinstance(cmds, CommandGroup):
+            # we need to iterate over the commands in the group and add them one by one.
+            # probably to have better performance we can use a set to check for duplicates without for loop.
+            for cmd_name, cmd in cmds.commands.items():
+                if cmd_name in self._commands:
+                    # probably we need to raise a custom exception here
+                    raise CommandDuplicate(cmd_name, cmd.f.__code__.co_filename, cmd.f.__code__.co_firstlineno)
+                self._commands[cmd_name] = cmd
+            # update the max command length
+            if self._max_command_length < cmds.max_command_length:
+                self._max_command_length = cmds.max_command_length
+
     def get_command(self, name: str) -> CommandModel:
         if name not in self._commands:
             raise CommandNotFound(name)
         return self._commands.get(name)
 
-    def get_commands(self) -> dict[str, Union[CommandModel, CommandAlias, 'CommandGroup']]:
-        return self._commands
+
+class SubCommandGroup(CommandGroup):
+    """
+    This class contains a set of CommandsModel, AliasCommandModel, SubCommandGroup.
+    In this way we can define a command tree.
+    """
+    def __init__(self, name: str, menu : str = "", usage: str = ""):
+        super().__init__()
+        self._name: str = name
+        self._menu: str = menu
+        self._usage: str = usage
+        self._current_cmd = CommandModel(f=None, name=name, alias="", menu=menu, usage=usage, parameters=[])
+
+    @property
+    def name(self) -> str:
+        return self._name
+
+    def add_help_command(self) -> None:
+        self.register_command(self.help, name="?", menu="Shows this help.")
 
     def get_usage(self, cmd: str) -> str:
         return self._commands[cmd].get_usage()
