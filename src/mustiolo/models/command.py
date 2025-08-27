@@ -18,7 +18,18 @@ CommandsType = NewType('CommandsType', Dict[str, Union['CommandModel', 'CommandA
                                                         'SubCommandGroup']])
 
 
-@dataclass
+# TODO: Maybe we can use a virtual base class for CommandModel and CommandAlias and SubCommandGroup.
+# This way we can have different benefits:
+# 1. We can use isinstance to check if an object is a command by using Protocol or ABC.
+# 2. Avoid the Union type in CommandsType
+# 3. We can use a common interface for all commands, aliases and subcommandgroup.
+# But this is not necessary at the moment, so we will leave it as it is.
+# The main problem is SubCommandGroup, which is not an executable command.
+
+CommandsType = NewType('CommandsType', Dict[str, Union['CommandModel', 'CommandAlias',
+                                                        'SubCommandGroup']])
+
+@dataclass(frozen=True, slots=True)
 class CommandModel:
     """This class is used as Model for help message and
        for handle checks on the command.
@@ -31,8 +42,17 @@ class CommandModel:
     f: Union[Callable, None] = None
     menu: str = ""   # this is the short help message
     usage: str = ""  # this is the long help message
-    # TODO: change parameters into arguments
-    parameters: List[ParameterModel] = field(default_factory=list)
+    arguments: List[ParameterModel] = field(default_factory=list)
+
+
+    @property
+    def argument_padding(self) -> int:
+        """
+        This function returns the padding used for the help message.
+        It is used to align the parameters in the help message.
+        """
+        # compute the padding based on the arguments
+        return max(len(arg.metavar) for arg in self.arguments) if self.arguments else 0
 
     def __str__(self) -> str:
         return self.get_usage()
@@ -44,19 +64,19 @@ class CommandModel:
         return f"{name_and_alias.ljust(padding)}\t\t{self.menu}"
 
     def get_usage(self) -> str:
-        help_msg = [f"{self.usage}\n\n{self.name} {' '.join([p.name.upper() for p in self.parameters])}"]
-        if len(self.parameters) == 0:
+        help_msg = [f"{self.usage}\n\n{self.name} {' '.join([p.metavar.upper() for p in self.arguments])}"]
+        if len(self.arguments) == 0:
             return help_msg[0]
-        
-        help_msg.append("\nParameters:")
-        help_msg.extend([str(p) for p in self.parameters])
+
+        help_msg.append("\nParameters:\n")
+        help_msg.extend([p.get_usage(self.argument_padding) for p in self.arguments])
         return "\n".join(help_msg)
 
     def get_mandatory_parameters(self) -> List[ParameterModel]:
-        return [ param for param in self.parameters if param.default is None ]
+        return [ arg for arg in self.arguments if arg.default is None ]
 
     def get_optional_parameters(self) -> List[ParameterModel]:
-        return [ param for param in self.parameters if param.default is not None ]
+        return [ arg for arg in self.arguments if arg.default is not None ]
 
     def cast_arguments(self, args: List[str]) -> List[Any]:
         """
@@ -66,10 +86,10 @@ class CommandModel:
         """
         if len(args) < len(self.get_mandatory_parameters()):
             raise Exception("Missing parameters")
-        if len(args) > len(self.parameters):
+        if len(args) > len(self.arguments):
             raise Exception("Too many parameters")
 
-        return [ self.parameters[index].convert_to_type(args[index]) for index in range(0, len(args)) ]
+        return [ self.arguments[index].convert_to_type(args[index]) for index in range(0, len(args)) ]
 
     def __call__(self, *args, **kwargs) -> Any:
         if self.f is None:
@@ -77,8 +97,15 @@ class CommandModel:
         return self.f(*args, **kwargs)
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class CommandAlias:
+    """
+    This class is used to create an alias for a command.
+    It is used to allow another name for the same command.
+    We copy the command model and use it as an alias.
+    TODO: maybe we can use a weaker reference to the command model to better manage memory.
+    """
+
     command: CommandModel
 
     def __str__(self) -> str:
@@ -137,6 +164,7 @@ class CommandGroup:
         return name in self._commands
 
     def register_command(self, fn: Callable, name: Union[str, None] = None, alias: str = "",
+                         metavars: Dict[str, str] = {},
                           menu: str = "", usage: str = "") -> None:
 
         docstring_msgs = parse_docstring_for_menu_usage(fn)
@@ -156,20 +184,22 @@ class CommandGroup:
         if command_usage == "":
             command_usage = command_menu
 
-        if len(command_name) + len(", ") + len(alias) > self._max_command_length:
-            self._max_command_length = len(command_name)
+        display_cmd = f"{command_name}, {alias}"
 
-        if command_name in self._commands.keys():
+        if len(display_cmd) > self._max_command_length:
+            self._max_command_length = len(display_cmd)
+
+        if command_name in self._commands:
             location = get_function_location(fn)
             raise CommandDuplicate(command_name, location.filename, location.lineno)
 
-        if alias in self._commands.keys():
+        if alias in self._commands:
             location = get_function_location(fn)
             raise CommandDuplicate(alias, location.filename, location.lineno)
 
-        parameters = parse_parameters(fn)
+        parameters = parse_parameters(f=fn, metavars=metavars)
         cmd = CommandModel(name=command_name, alias=alias, f=fn, menu=command_menu, usage=command_usage,
-                             parameters=parameters)
+                            arguments=parameters)
         self._commands[command_name] = cmd
         if len(alias) > 0:
             self._commands[alias] = CommandAlias(command=cmd)
@@ -188,6 +218,10 @@ class CommandGroup:
                 # probably we need to raise a custom exception here
                 raise CommandDuplicate(cmds.name, cmds._current_cmd.f.__code__.co_filename, cmds._current_cmd.f.__code__.co_firstlineno)
             self._commands[cmds.name] = cmds
+
+            # update width for subgroup name
+            if len(cmds.name) > self._max_command_length:
+                self._max_command_length = len(cmds.name)
             return
 
         if isinstance(cmds, CommandGroup):
@@ -218,7 +252,7 @@ class SubCommandGroup(CommandGroup):
         self._name: str = name
         self._menu: str = menu
         self._usage: str = usage
-        self._current_cmd = CommandModel(f=None, name=name, alias="", menu=menu, usage=usage, parameters=[])
+        self._current_cmd = CommandModel(f=None, name=name, alias="", menu=menu, usage=usage, arguments=[])
 
     @property
     def name(self) -> str:
@@ -242,7 +276,7 @@ class SubCommandGroup(CommandGroup):
  
         cmd_name = cmd_path.pop(0)
         command = self.get_command(cmd_name)
-        if isinstance(command, CommandGroup):
+        if isinstance(command, SubCommandGroup):
             command.help(cmd_path)
             return
         
@@ -257,7 +291,6 @@ class SubCommandGroup(CommandGroup):
         return self._current_cmd.get_menu(padding)
 
     def __call__(self) -> Any:
-        if self._current_cmd.f is None:
-            raise Exception(f"'{self._name}' is not executable")
+        # at the moment this kind of commands are not executable
+        raise Exception(f"'{self._name}' is not executable")
 
-        return self._current_command()

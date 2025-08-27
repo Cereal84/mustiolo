@@ -1,12 +1,12 @@
 from dataclasses import dataclass
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class FunctionLocation:
     filename: str
     lineno: int
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class FunctionMetadata:
     """
     This class contains some of the function information we need to

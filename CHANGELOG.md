@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.5.1]
+## Added
+- *CommandCollection* class which collects commands at same tree level.
+- *CommandCollection* class allows a better way to organize commands in different files.
+- It is possible to specify the metavars.
+## Fix
+- *_completer()* function improved to be more readable 
+
+
 ## [0.5.0]
 ### Added
 - Support alias for commands but not command groups.

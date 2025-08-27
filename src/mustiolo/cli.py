@@ -17,9 +17,20 @@ class CommandCollection:
     def __init__(self):
         self._group = CommandGroup()
 
-    def command(self, name: Union[str, None] = None, alias: str = "", menu: str = "", usage: str = "") -> Callable:
+    def command(self, name: Union[str, None] = None, alias: str = "",
+                metavars: dict[str, str] = {},
+                menu: str = "", 
+                usage: str = "") -> Callable:
         def decorator(f):
-            self._group.register_command(f, name, alias, menu, usage)
+            self._group.register_command(f, name, alias, metavars, menu, usage)
+            return f
+
+        return decorator
+
+    def metavar(self, name: str, description: str) -> Callable:
+        """Decorator to register a metavar in the command group."""
+        def decorator(f):
+            self._group.register_metavar(name, description)
             return f
 
         return decorator
@@ -36,24 +47,16 @@ class MenuGroup:
     def __init__(self, name: str = "", menu: str = "", usage: str = ""):
         self._group = SubCommandGroup(name, menu, usage)
 
-    def command(self, name: Union[str, None] = None, alias: str = "", menu: str = "", usage: str = "") -> Callable:
+    def command(self, name: Union[str, None] = None, alias: str = "",
+                metavars: dict[str, str] = {},
+                menu: str = "", usage: str = "") -> Callable:
         def decorator(f):
-            self._group.register_command(f, name, alias, menu, usage)
+            self._group.register_command(f, name, alias, metavars, menu, usage)
             return f
         return decorator
 
     def add_commands(self, commands: Union[CommandCollection, 'MenuGroup']) -> None:
         self._group.include_commands(commands.get_group())
-
-    '''def add_subgroup(self, subgroup: 'MenuGroup') -> None:
-        """Add a subgroup to the current group."""
-        self._group.add_command_group(subgroup.get_group())
-        
-
-    def add_commands(self, commands: CommandCollection) -> None:
-        """Add a collection of commands to the group."""
-        for cmd in commands.get_group().get_commands().values():
-            self._group.register_command(cmd.f, cmd.name, cmd.alias, cmd.menu, cmd.usage)'''
 
     def get_group(self) -> SubCommandGroup:
         return self._group
@@ -67,124 +70,111 @@ class CLI:
         self._autocomplete = autocomplete
         self._exit = False
         self._reserved_commands = ["?", "exit"] 
-        self._columns = os.get_terminal_size().columns
+        try:
+            self._columns = os.get_terminal_size().columns
+        except OSError:
+            # If we cannot get the terminal size, we default to 80 columns
+            self._columns = 80
         # contains all the menus by name
         self._menu : Union[CommandGroup, SubCommandGroup] = None
         self._istantiate_root_menu()
 
-    def _completer(self, text, state):
+    def _completer(self, text: str, state: int):
         """
-        Autocomplete for nested CommandGroups.
+        Autocomplete function for the CLI.
+        This function is used by readline to provide autocompletion.
         """
-        # TODO: Implement a better autocomplete function, this code is just a starting point
-        #       full of duplicated logic.
+        if not self._autocomplete:
+            return None
+        
+        curr_subtree = self._menu
 
-        current_group = self._menu
-        cmd = None
-        options = None
-        is_help_command = False
-
-        # Get the current input line and cursor position
+        # split input into tokens
         line_buffer = readline.get_line_buffer()
-        split_line = line_buffer.strip().split()
+        tokens = line_buffer.strip().split()
 
-        # in case of help command ('?') as first command we need to remove it
-        # in order to have the correct command path and autocomplete
-        if len(split_line) > 0 and split_line[0] == "?":
-            split_line.pop(0)
-            is_help_command = True
+        # ideally we should complete the last token.
+        # if there are no tokens, we return the list of commands.
+        # Otherwise we need to traverse the command path
+        # and return the list of commands or subcommands that match the last token.
 
-        # we have this cases
-        # 1. no split_line, so we are at the root menu
-        # 2. split_line and the last element is a command, so we need to autocomplete the command
-        # 3. split_line and the last element is a group, so we need to shows all its commands
-        # 4. split_line and the last element is a partial string so we need to autocomplete the command
+        # We need to handler the case of help command ('?') as first token removing it
+        if len(tokens) > 0 and tokens[0] == "?":
+            tokens.pop(0)
 
-        # []
-        # [partial_command]
-        # [command]
-        # [command, ...,  partial_command]
-        if len(split_line) == 0:
-            options = [name for name in current_group.commands.keys()]
-            if is_help_command:
+        # We traverse the list of tokens until we reach the last one.
+        # Doing it we need to check if the tokens are existing commands (os subcommands).
+        # If the current token (which is not the last one) is not a SubCommandGroup we need to
+        # return None, because we cannot complete the command.
+        # Othersiwe we can continue to traverse the command path.
+
+        if len(tokens) == 0:
+            # no tokens, so we return the list of commands
+            options = [name for name in curr_subtree.commands.keys()]
+            if "?" in options:
                 options.remove("?")
             options.sort()
-            return options[state] + " "
+            if state < len(options):
+                return options[state] + " "
+            return None
 
-        elif len(split_line) == 1:
-            # we can have a full command, a partial command or a group
-            if current_group.has_command(split_line[0]):
-                # is a complete command.
-                # get it and check if it is a SubCommandGroup
-                cmd = current_group.get_command(split_line[0])
-                if isinstance(cmd, SubCommandGroup):
-                    # get all the subcommands for this group
-                    options = [name for name in cmd.commands.keys()]
-                else:
-                    # get only the command that starts with the partial command
-                    options = [name for name in current_group.commands.keys() if name.startswith(split_line[-1])]
+        for index, token in enumerate(tokens):
+            if index == len(tokens) - 1:
+                # we are at the last token, so we need to check if it is a SubCommandGroup
+                # or single command.
 
-            else:
-                # is not a complete command, so we need to check if a subcommand starts with it
-                # in the current group
-                options = [name for name in current_group.commands.keys() if name.startswith(split_line[-1])]
+                # TODO: get_command() raises an exception if the
+                # command is not found... maybe we should use has_command() whhich
+                # returns boolean and/or change get_command() to return None.
+                # This choice affects the run() method.
+                try:
+                    cmd = curr_subtree.get_command(token)
 
-        else:
-            # Traverse the command path to the deepest CommandGroup
-            for part in split_line[:-1]:
-                if current_group.has_command(part.strip()):
-                    cmd = current_group.get_command(part.strip())
+                    # it is a valid command
                     if isinstance(cmd, SubCommandGroup):
-                        current_group = cmd
-                        continue
-                    else:
-                        # we have a command but we need a group
-                        return None
-                else:
-                    # we are in the middle of the path but there is no command
+                        # we return the list of subcommands for this group
+                        options = [name for name in cmd.commands.keys()]
+                        options.sort()
+
+                        if state < len(options):
+                            return options[state] + " "
+
                     return None
-        
-            # we've traversed the path and arrived at the last CommandGroup
-            check_cmd = split_line[-1].strip()
-
-            # so we need to check if it is a complete command or a partial command
-            if current_group.has_command(check_cmd):
-                # is a complete command
-                cmd = current_group.get_command(check_cmd)
-                if isinstance(cmd, SubCommandGroup):
-                    # get all the subcommands for this group
-                    options = [name for name in current_group.commands.keys()]
-                else:
-                    # get only the command that starts with the partial command
-                    options = [name for name in current_group.commands.keys() if name.startswith(split_line[-1])]
-            else:
-                # is a partial command
-                options = [name for name in current_group.commands.keys() if name.startswith(split_line[-1])]
-                
-        options.sort()
-
-        if len(split_line) == 0:
-            return options
-
-        if state < len(options):
-            if options[state] == split_line[-1]:
+                except CommandNotFound:
+                    # is not a complete command, so we need to check if the curr_subtree is
+                    # a subcommand and get the list of commands that starts with the token
+                    options = [name for name in curr_subtree.commands.keys() if name.startswith(token)]
+                    options.sort()
+                    if state < len(options):
+                        return options[state] + " "
+                    return None
+                  
+            
+            # we are not at the last token, so we need to check if it is a SubCommandGroup
+            try:
+                next_branch = curr_subtree.get_command(token)
+                if not isinstance(next_branch, SubCommandGroup):
+                    # the current token is not a SubCommandGroup, so we cannot continue
+                    return None
+                curr_subtree = next_branch
+            except CommandNotFound:
                 return None
-            return options[state] + " "
-        return None
 
     def _set_autocomplete(self) -> None:
-        if self._autocomplete:
-            match sys.platform:
-                case 'linux':
-                    readline.parse_and_bind("tab: complete")
-                    readline.parse_and_bind("set show-all-if-ambiguous on")
-                    readline.set_completer(self._completer)
-                case 'darwin':
-                    readline.parse_and_bind("bind ^I rl_complete")
-                    readline.parse_and_bind("set show-all-if-ambiguous on")
-                    readline.set_completer(self._completer)
-                case _:
-                    print("Autocomplete not supported for this OS")
+
+        if not self._autocomplete:
+            return
+        match sys.platform:
+            case 'linux':
+                readline.parse_and_bind("tab: complete")
+                readline.parse_and_bind("set show-all-if-ambiguous on")
+                readline.set_completer(self._completer)
+            case 'darwin':
+                readline.parse_and_bind("bind ^I rl_complete")
+                readline.parse_and_bind("set show-all-if-ambiguous on")
+                readline.set_completer(self._completer)
+            case _:
+                print("Autocomplete not supported for this OS")
 
     def _istantiate_root_menu(self) -> None:
         """Instantiate the root menu and register it in the menues list.
@@ -203,7 +193,9 @@ class CLI:
             cols = columns
         return draw_message_box(title, content, border_style, cols)
 
-    def command(self, name: Union[str, None] = None, alias: str = "", menu: str = "", usage: str = "") -> None:
+    def command(self, name: Union[str, None] = None, alias: str = "", 
+                metavars: dict[str, str] = {},    
+                menu: str = "", usage: str = "") -> None:
         """Decorator to register a command in the __root_ CLI menu."""
 
         if name in self._reserved_commands:
@@ -213,7 +205,7 @@ class CLI:
             def wrapper(*args, **kwargs):
                 funct(*args, **kwargs)
 
-            self._menu.register_command(funct, name, alias, menu, usage)
+            self._menu.register_command(funct, name, alias, metavars, menu, usage)
             return wrapper
         return decorator
 

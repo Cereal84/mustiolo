@@ -19,13 +19,16 @@ Mustiolo is designed to be simple, extensible, and easy to use.
   - [Basic usage](#basic-usage)
     - [Defining commands](#defining-commands)
     - [Help format](#help-format)
-  - [Override command information](#override-command-information)
+  - [Supported Types for Parameters](#supported-types-for-parameters)
+  - [Customize commands](#customize-commands)
+    - [Metavars](#metavars)
     - [Notes](#notes)
       - [Menu](#menu)
       - [Usage](#usage)
   - [Mandatory and optional parameters](#mandatory-and-optional-parameters)
-  - [Supported Types for Parameters](#supported-types-for-parameters)
-  - [Group commands](#group-commands)
+  - [Commands](#commands)
+    - [MenuGroup](#menugroup)
+    - [CommandCollection](#commandcollection)
   - [Command Alias](#command-alias)
   - [Configure CLI](#configure-cli)
   - [License](#license)
@@ -139,15 +142,48 @@ Parameters:
 > exit
 ```
 
-## Override command information
+## Supported Types for Parameters
 
-By default, the library uses as command name the function decorated via `@cli.command` and as short help message 
-the `docstring`.
+Mustiolo automatically converts command-line arguments to the types declared in your function signatures. 
+For this reason, type annotation is mandatory; otherwise, an error will be shown and the CLI will exit.
+The following types are supported:
+
+- **str**: No conversion is performed; the argument is passed as a string.
+- **int**: The argument is converted to an integer.
+- **float**: The argument is converted to a float.
+- **bool**: Accepts `true`, `false`, `1`, `0` (case-insensitive). For example, `"true"` and `"1"` become `True`, `"false"` and `"0"` become `False`.
+- **List (or `list`)**: Accepts a comma-separated string (e.g., `"a,b,c"` or `"1,2,3"`).  
+  - If a subtype is specified (e.g., `List[int]`), each element is converted to that type.
+  - Supported subtypes are: `str`, `int`, `float`, `bool`.
+  - If no subtype is specified, elements are treated as strings.
+
+**Examples:**
+
+```python
+@cli.command(menu="Example command", usage="An example command with various types.")
+def example(a: int, b: float, c: bool, d: str, e: list, f: list[int]):
+    print(a, b, c, d, e, f)
+```
+
+```bash
+> example 5 3.14 true hello a,b,1 1,2,3
+# Output: 5 3.14 True hello ['a', 'b', '1'] [1, 2, 3]
+```
+
+**Notes:**
+- If the conversion fails (e.g., passing `"abc"` to an `int`), an error is shown.
+
+
+## Customize commands
+
+By default, the library uses as command name the function decorated via `@cli.command` and as 
+short help message the `docstring`.
 It is possible to override the information passing, in the decorator, the following arguments:
 
 - name
 - menu
 - usage
+- metavars
 
 So we can define a command like this:
 
@@ -174,8 +210,72 @@ Parameters:
 > 
 ```
 
-### Notes
+### Metavars
 
+By default the library uses as METAVAR name in the usage output the function's parameters 
+in uppercase.
+
+Sometimes is useful to have separated names for parameter and its METAVAR name.
+To do that you MUST specify a dictionary in which each key is the parameter name and the value
+is the METAVAR name you want to show to the user.
+
+
+```python
+from mustiolo.cli import CLI
+
+cli = CLI()
+
+@cli.command()
+def greet(name: str = "World"):
+    """<menu>Greet a user by name.</menu>"""
+    print(f"Hello {name}!")
+
+
+@cli.command(name="sum", menu="Sum two numbers", usage="Add two numbers and print the result.", metavars={"a": "addend1", "b": "addend2"})
+def add(a: int, b: int):
+    print(f"The result is: {a + b}")
+
+@cli.command(name="sub", menu="Subtraction two numbers", usage="Subtract two numbers and print the result.", metavars={"a": "minuend", "b": "subtrahend"})
+def sub(a: int, b: int):
+    print(f"The result is: {a - b}")
+
+
+if __name__ == "__main__":
+    cli.run()
+
+```
+
+Now even if we're using _a_ and _b_ for _sum_ we'll see ADDEND1 and ADDEND2, same for the
+ _sub_ command in which we have MINUEND and SUBTRAHEND
+
+```shell
+> ?
+?      		Shows this help.
+exit   		Exit the program
+greet  		Greet a user by name.
+sum    		Sum two numbers
+sub    		Subtraction two numbers
+> ? sum
+Add two numbers and print the result.
+
+sum ADDEND1 ADDEND2
+
+Parameters:
+
+ADDEND1		Type INTEGER [required]
+ADDEND2		Type INTEGER [required]
+> ? sub
+Subtract two numbers and print the result.
+
+sub MINUEND SUBTRAHEND
+
+Parameters:
+
+MINUEND   		Type INTEGER [required]
+SUBTRAHEND		Type INTEGER [required]
+```
+
+### Notes
 
 #### Menu
 `menu` message is mandatory and can be specified via docstring or parameter in `command` decorator.
@@ -220,46 +320,12 @@ Parameters:
 		NAME	Type STRING [optional] [default: World]
 ```
 
-
-## Supported Types for Parameters
-
-Mustiolo automatically converts command-line arguments to the types declared in your function signatures. 
-For this reason, type annotation is mandatory; otherwise, an error will be shown and the CLI will exit.
-The following types are supported:
-
-- **str**: No conversion is performed; the argument is passed as a string.
-- **int**: The argument is converted to an integer.
-- **float**: The argument is converted to a float.
-- **bool**: Accepts `true`, `false`, `1`, `0` (case-insensitive). For example, `"true"` and `"1"` become `True`, `"false"` and `"0"` become `False`.
-- **List (or `list`)**: Accepts a comma-separated string (e.g., `"a,b,c"` or `"1,2,3"`).  
-  - If a subtype is specified (e.g., `List[int]`), each element is converted to that type.
-  - Supported subtypes are: `str`, `int`, `float`, `bool`.
-  - If no subtype is specified, elements are treated as strings.
-
-**Examples:**
-
-```python
-@cli.command(menu="Example command", usage="An example command with various types.")
-def example(a: int, b: float, c: bool, d: str, e: list, f: list[int]):
-    print(a, b, c, d, e, f)
-```
-
-```bash
-> example 5 3.14 true hello a,b,1 1,2,3
-# Output: 5 3.14 True hello ['a', 'b', '1'] [1, 2, 3]
-```
-
-**Notes:**
-- If the conversion fails (e.g., passing `"abc"` to an `int`), an error is shown.
-
-
 ## Commands
 
 We have 2 types of command groups:
 1. **MenuGroup**: Represent a sub command, so a branch in the CLI tree.
 2. **CommandCollection**: is a collection of commands, useful if you want to organize the cli commands in different
      files or modules. It is possible to add a `CommandCollection` to the root menu or to `MenuGroup`.
-
 
 ### MenuGroup
 
@@ -321,6 +387,9 @@ sub     	Subtract two numbers.
 ```
 
 ### CommandCollection
+
+*CommandCollection* is quite useful to organize the CLI commands in different files and then
+include them.
 
 ```python
 # commands.py
