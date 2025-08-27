@@ -33,10 +33,15 @@ class ParameterModel:
     name: str
     ptype: Any
     default: Any
+    metavar: str | None = None # used only for help message
 
-    def __str__(self) -> str:
+    def __post_init__(self):
+        if self.metavar is None:
+            self.metavar= self.name
+
+    def get_usage(self, padding: int) -> str:
         # TODO handle list type and subtypes
-        msg = [f"\t\t{self.name.upper()}\tType {ptype_to_str(self.ptype)} "]
+        msg = [f"{self.metavar.upper().ljust(padding)}\t\tType {ptype_to_str(self.ptype)} "]
         if self.default is not None:
             msg.append(f"[optional] [default: {self.default}]")
         else:

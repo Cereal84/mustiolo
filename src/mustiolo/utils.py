@@ -77,10 +77,9 @@ def get_function_metadata(fn: Callable) -> FunctionMetadata:
     return FunctionMetadata(name=name, docstring=docstring, argscount=argscount, location=location)
 
 
-def parse_parameters(f: Callable) -> List[ParameterModel]:
+def parse_parameters(f: Callable, metavars: dict[str, str]) -> List[ParameterModel]:
     parameters = []
     defaults = get_defaults(f)
-
 
     if len(f.__annotations__.keys()) != f.__code__.co_argcount:
         # so not all the parameters have an annotation
@@ -88,6 +87,6 @@ def parse_parameters(f: Callable) -> List[ParameterModel]:
         raise ParameterMissingType(fmeta.name, fmeta.location.filename, fmeta.location.lineno)
 
     for pname, ptype in f.__annotations__.items():
-        parameters.append(ParameterModel(name=pname, ptype=ptype, default=(defaults.get(pname, None))))
+        parameters.append(ParameterModel(name=pname, ptype=ptype, default=(defaults.get(pname, None)), metavar=metavars.get(pname)))
 
     return parameters
